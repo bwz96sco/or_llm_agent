@@ -11,6 +11,18 @@ OR-LLM-Agent: Automating Modeling and Solving of Operations Research Optimizatio
 Operations Research (OR) has been widely applied in various fields such as resource allocation, production planning, and supply chain management. However, addressing real-world OR problems requires OR experts to perform mathematical modeling and programmers to develop solution algorithms. This traditional method, heavily reliant on experts, is costly and has long development cycles, severely limiting the widespread adoption of OR techniques. Few have considered using Artificial Intelligence (AI) to replace professionals to achieve fully automated solutions for OR problems. We proposed OR-LLM-Agent, the AI agent that enables end-to-end automation for solving real-world OR problems. OR-LLM-Agent leverages the Chain-of-Thought (CoT) reasoning capabilities of Large Language Models (LLMs) to translate natural language problem descriptions into formal mathematical models and automatically generate Gurobi solver code. In OR-LLM-Agent, OR-CodeAgent is designed to automate code execution and repair within a sandbox environment, facilitating the derivation of the final solution. Due to the lack of dedicated benchmark datasets for evaluating the automated solving of OR problems, we construct a benchmark dataset comprising 83 real-world OR problems described in natural language. We conduct comparative experiments with state-of-the-art (SOTA) reasoning LLMs, including GPT-o3-mini, DeepSeek-R1, and Gemini 2.0 Flash Thinking. The OR-LLM-Agent achieved the highest pass rate of 100% and the highest solution accuracy of 85%, demonstrating the feasibility of automated OR problem-solving.
 <br><br>
 
+## Introduction 📖
+
+Companies have traditionally relied on OR experts to develop specialized models for complex optimization problems, ensuring rigorous and tailored solutions. However, this approach is costly and slow, and even well-defined models face implementation challenges, as effective use of solvers like Gurobi and CPLEX demands advanced programming and debugging skills.
+
+<img src="./assets/pic1_2.PNG" alt="or-llm-agent" width="1000" height="auto" div align=center>
+
+We propose OR-LLM-Agent, a reasoning LLM-based framework for fully automated OR optimization. OR-LLM-Agent converts a natural language problem description into a mathematical model, generates and executes the solution code, and thus facilitates an end-to-end automation pipeline from OR problem description to the solution. OR-LLM-Agent comprises modules for user problem description input, LLM mathematical modeling, LLM code generation, and OR-CodeAgent. The LLM mathematical modeling module constructs linear programming models for the OR problem. The LLM code generation module produces OR solver code based on the mathematical model. OR-CodeAgent ensures automated code execution and repair to obtain the final solution. The framework of OR-LLM-Agent is shown in following figure.
+
+<img src="./assets/pic2_1.PNG" alt="or-llm-agent" width="1000" height="auto" div align=center>
+
+<br><br>
+
 ## Installation
 ### Prerequisites
 - Python 3.8+
