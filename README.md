@@ -1,6 +1,12 @@
+
+<div align="center">
 <h1 align="center">
 OR-LLM-Agent: Automating Modeling and Solving of Operations Research Optimization Problem with Reasoning Large Language Model
 </h1>
+
+[Chinese Version 中文版本](./README_CN.md)
+</div>
+
 <p align="center"> <a href="https://arxiv.org/abs/2503.10009" target="_blank"><img src="https://img.shields.io/badge/arXiv-Paper-FF6B6B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a> <a href="https://github.com/bwz96sco/or_llm_agent"><img src="https://img.shields.io/badge/GitHub-Code-4A90E2?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>  </p>
 
 ![](assets/dynamic.gif?autoplay=1)
@@ -57,6 +63,8 @@ Make sure to setup your OpenAI API key in `.env` file!
 #setup a .env file
 cp .env.example .env
 ```
+
+You need to set the OPENAI_API_KEY and OPENAI_API_BASE url(if you want to use OpenAI compatible service). You will also need to set the CLAUDE_API_KEY if you want to use claude model. If you want to use the DeepSeek model, I recommend you to use the Volcengine(you can get a tutorial from https://www.volcengine.com/docs/82379/1449737), set the OPENAI_API_KEY to Api Key provided by volcengine and set  OPENAI_API_BASE to "https://ark.cn-beijing.volces.com/api/v3".
 
 <br><br><br>
 
