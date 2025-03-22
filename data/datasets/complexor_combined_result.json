@@ -1,0 +1,92 @@
+{
+    "0": {
+        "index": 0,
+        "question": "The Aircraft Assignment Problem aims to assign aircraft to routes in order to minimize the total cost while satisfying demand constraints with available aircraft. The problem involves a set of aircraft and a set of routes. Given the costs of assigning an aircraft to a route. The objective is to minimize the total cost of the assignment. There are limited available aircraft. It is constrained that the number of each aircraft allocated does not exceed its available number. Given the demand of each route and the capabilities (the largest number of people can be carried) of an aircraft for a route. The demand constraint ensures that the total allocation for each route satisfies the demand. The problem seeks to find the most cost-effective assignment of aircraft to routes.",
+        "answer": 700
+    },
+    "1": {
+        "index": 1,
+        "question": "The Aircraft Landing Problem (ALP) is the problem of deciding a landing time on an appropriate runway for each aircraft in a given set of aircraft such that each aircraft lands within a predetermined time window; and separation criteria between the landing of an aircraft, and the landing of all successive aircraft, are respected. We are given the earliest landing time, latest landing time, target landing time, and penalties for landing before or after the target landing time for each aircraft. There is also a separation time that represents the minimum time required between the landing of two aircraft. The objective of the problem is to minimize the total penalties of landing before or after the target time for each aircraft. The problem includes several constraints. The order constraint ensures that the aircrafts land in a specific order. The separation constraint ensures that there is enough separation time between the landing of aircraft. The lower and upper time window constraints ensure that each aircraft lands within its respective earliest and latest time windows.",
+        "answer": 0
+    },
+    "2": {
+        "index": 2,
+        "question": "The problem aims to determine the optimal amounts of alloys to purchase in order to achieve a desired blend of required elements at the minimum cost. We are given a set of alloys available on the market and a set of required elements for the blend, the percentage composition data of each required element in each alloy, the desired blend percentage of each required element, the price of each alloy. The decision is the amount of each alloy to be purchased, which is continuous. The objective is to minimize the total cost of the alloy purchased. There are two constraints. The first set of constraints ensures that the desired blend percentage of each required element is met. The second constraint ensures that the total amount of alloys purchased is equal to 1.",
+        "answer": 10
+    },
+    "3": {
+        "index": 3,
+        "question": "The Car Selection Problem is a mixed integer programming model that aims to assign participants to cars in a way that maximizes the total number of assignments. The problem involves a set of participants and a set of cars, where each participant is interested in a subset of cars. The objective is to find the optimal assignment of participants to cars that satisfies certain constraints.",
+        "answer": 3
+    },
+    "4": {
+        "index": 4,
+        "question": "A telecom company needs to build a set of cell towers to provide signal coverage for the inhabitants of a given city. A number of potential locations where the towers could be built have been identified. The towers have a fixed range, and due to budget constraints only a limited number of them can be built. Given these restrictions, the company wishes to provide coverage to the largest percentage of the population possible. To simplify the problem, the company has split the area it wishes to cover into a set of regions, each of which has a known population. The goal is then to choose which of the potential locations the company should build cell towers on in order to provide coverage to as many people as possible.",
+        "answer": 200
+    },
+    "5": {
+        "index": 5,
+        "question": "This is a cutting stock problem. Given a roll of width `RollWidth` and a set of widths `Width` to be cut. Each width `i` has a certain number of Orders `Orders_{i}`. There are `NumPatterns` patterns and each pattern `j` has a certain number of rolls of each width `i` `NumRollsWidth_{i, j}`. The problem aims to minimize the total number of raw rolls cut. It is constrained that for each width `i`, the total number of rolls cut meets the total Orders. How to decide the number of rolls cut using each pattern `j`?",
+        "answer": 6
+    },
+    "6": {
+        "index": 6,
+        "question": "Consider a diet problem. Given a set of nutrients `Nutrients` and a set of foods `Foods`. Each food `j` has a cost `Cost_{j}` and a range of amount that can be bought `[MinAmount_{j}, MaxAmount_{j}]`. Each nutrient `i` has a range of amount that should be included in the diet `[MinNutrient_{i}, MaxNutrient_{i}]`. The amount of nutrient `i` in food `j` is `NutrientAmount_{i, j}`. The problem aims to minimize the total cost of buying foods. It is constrained that the total amount of each nutrient `i` in the bought foods should be within its range. How to decide the amount of each food `j` to buy?",
+        "answer": 10.333333333452588
+    },
+    "7": {
+        "index": 7,
+        "question": "Consider a diet problem. Given a set of foods `Foods` and a set of nutrients `Nutrients` which is the union of nutrients with minimum requirements `MinRequirements` and nutrients with maximum requirements `MaxRequirements`. Each food `j` has a cost `Cost_{j}` and the amount of each nutrient `i` it contains is `NutrientAmount_{i, j}`. The problem aims to minimize the total cost of buying foods. It is constrained that the total amount of each nutrient `i` with minimum requirements in the foods bought is at least `MinRequirement_{i}` and the total amount of each nutrient `i` with maximum requirements in the foods bought is at most `MaxRequirement_{i}`. How to decide the amount of each food `j` to buy?",
+        "answer": 45.0
+    },
+    "8": {
+        "index": 8,
+        "question": "A set of jobs `Jobs` need to be processed on a set of machines `Machines` in series. All jobs have the same processing order through all the machines from machine 1 to machine M. Each machine can work in parallel. The workflow is the following: the first job of the sequence goes to the first machine to be processed; meanwhile, other jobs wait; when the first machine has processed the first job, the first job goes to the second machine and the second job of the sequence starts to be processed by the first machine; and so on. The time required to process job `j` on machine `m` is `ProcesTime_{j, m}`. The problem aims to minimize the total makespan. The goal is to find a sequence of jobs that minimize the makespan: the time when all jobs have been processed.",
+        "answer": 7
+    },
+    "9": {
+        "index": 9,
+        "question": "The Knapsack Problem is a classic optimization problem in operations research and computer science. The problem is to determine the most valuable combination of items to include in a knapsack, given a set of items with different values and weights, and a maximum weight capacity of the knapsack. The goal is to maximize the total value of the items in the knapsack without exceeding its weight capacity.",
+        "answer": 220
+    },
+    "10": {
+        "index": 10,
+        "question": "The main media selection problem is a problem of allocating advertising budgets between possible advertising outlets. Given a set of media options, it aims to determine which media should be selected so that all audiences are reached with minimum campaign cost. It does not matter if an audience is covered more than once, as long as it is covered at least once. Moreover, the company does not wish to spend more money on the campaign than necessary.",
+        "answer": 25.0
+    },
+    "11": {
+        "index": 11,
+        "question": "This is a multi-commodity transportation problem. Given a set of origins `Origins`, a set of destinations `Destinations`, and a set of products `Products`. Each origin `i` has a certain supply of each product `p` `Supply_{i,p}` and each destination `j` has a certain demand for each product `p` `Demand_{j,p}`. The cost of shipping one unit of product `p` from origin `i` to destination `j` is `ShippingCost_{i, j, p}`. The problem aims to minimize the total cost of shipping all products from the origins to the destinations. It is constrained that the total amount of each product `p` shipped from each origin `i` equals its supply, the total amount of each product `p` shipped to each destination `j` equals its demand, and the total amount of all products shipped from each origin `i` to each destination `j` does not exceed a certain limit `Limit_{i,j}`. How to decide the number of units of each product `p` to be shipped from each origin `i` to each destination `j`?",
+        "answer": 235
+    },
+    "12": {
+        "index": 12,
+        "question": "Consider a project assignment problem. Given a set of people `People` and a set of projects `Projects`. Each person `i` has a certain number of available hours `Supply_{i}` and each project `j` requires a certain number of hours `Demand_{j}`. The cost per hour of work for person `i` on project `j` is `Cost_{i, j}`. Each person `i` can contribute to project `j` up to a maximum limit `Limit_{i, j}`. The problem aims to minimize the total cost of assigning people to projects. It is constrained that the total number of hours assigned from each person `i` equals its supply and the total number of hours assigned to each project `j` equals its demand. How to decide the number of hours to be assigned from each person `i` to each project `j`?",
+        "answer": 285
+    },
+    "13": {
+        "index": 13,
+        "question": "Consider a transportation problem with multiple products. Given a set of cities `Cities` and a set of links `Links` between the cities. Each city `i` has a certain supply of each product `p` `Supply_{i,p}` and a certain demand for each product `p` `Demand_{i,p}`. The cost of shipping one package of product `p` from city `i` to city `j` is `ShipmentCost_{i, j, p}`. Each link `(i, j)` has a certain capacity for each product `p` `Capacity_{i,j,p}` and a joint capacity `JointCapacity_{i, j}` for all products. The problem aims to minimize the total cost of shipping products from the cities to the cities. The total number of packages to be shipped on each link `(i, j)` should not exceed its joint capacity. How to decide the number of packages of each product `p` to be shipped from each city `i` to each city `j`?",
+        "answer": 10
+    },
+    "14": {
+        "index": 14,
+        "question": "Consider a transportation problem. Given a set of origins `Origins` and a set of destinations `Destinations`. Each origin `i` has a certain supply of goods `Supply_{i}` and each destination `j` has a certain demand for goods `Demand_{j}`. The cost of shipping one unit of goods from origin `i` to destination `j` is `Rate_{i, j}`. However, the number of units shipped can't exceed the limit `Limit_{i, j}`. The problem aims to minimize the total cost of shipping goods from the origins to the destinations. How to decide the number of units to be shipped from each origin `i` to each destination `j`?",
+        "answer": 305
+    },
+    "15": {
+        "index": 15,
+        "question": "Consider a problem where we have a set `P`. For each element `j` in `P`, we have a parameter `a[j]`, a parameter `c[j]`, and a parameter `u[j]`. We also have a global parameter `b`. We have a variable `X[j]` for each `j` in `P`. The goal is to maximize the total profit, which is the sum of `c[j] * X[j]` for all `j` in `P`. The constraints are that the sum of `(1/a[j]) * X[j]` for all `j` in `P` should be less than or equal to `b`, and `X[j]` should be between 0 and `u[j]` for all `j` in `P`.",
+        "answer": 66
+    },
+    "16": {
+        "index": 16,
+        "question": "We have a set of flight legs (one-way non-stop flight) with a limited passenger capacity. According to market research, we defined a set of flight itineraries to sell as a package with a given price. For each package, we have an estimated demand. How many units of each package should we sell to maximize the revenue? We reserve the passenger seats according to the number of packages we want to sell.",
+        "answer": 8000
+    },
+    "17": {
+        "index": 17,
+        "question": "Consider a production problem. Given a set of products `Products` and a set of stages `Stages`. Each product `p` has a certain production rate `Rate_{p, s}` in each stage `s` and a certain profit `Profit_{p}` per ton. Each stage `s` has a certain number of hours `Available_{s}` available per week. There are also lower and upper limits on the tons of each product sold in a week, `Commit_{p}` and `Market_{p}` respectively. The problem aims to maximize the total profit from all products. It is constrained that the total number of hours used by all products in each stage `s` may not exceed the hours available. How to decide the number of tons to be produced for each product `p`?",
+        "answer": 110
+    }
+}

@@ -129,7 +129,8 @@ def eval_model_result(success, result, ground_truth, err_range=0.1):
         pass_flag = True
         if is_number_string(str(result)) and ground_truth is not None:
             result_num = convert_to_number(str(result))
-            if abs(result_num - ground_truth) < err_range:
+            ground_truth_num = convert_to_number(str(ground_truth))
+            if abs(result_num - ground_truth_num) < err_range:
                 correct_flag = True
         elif result == 'None': # no avai solution
             if ground_truth is None or ground_truth == 'None':
