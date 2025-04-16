@@ -173,3 +173,7 @@ cython_debug/
 .DS_Store
 
 data/results
+
+data/datasets/LPWP
+
+data/datasets/ComplexOR

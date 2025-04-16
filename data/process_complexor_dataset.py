@@ -3,23 +3,25 @@ import os
 import json
 import glob
 
-def process_lpwp_dataset():
-    # Path to the LPWP dataset
-    lpwp_path = "data/datasets/LPWP"
+def process_complexor_dataset():
+    # Path to the ComplexOR dataset
+    complexor_path = "data/datasets/ComplexOR"
     
     # Get all problem directories
-    prob_dirs = glob.glob(os.path.join(lpwp_path, "prob_*"))
+    prob_dirs = glob.glob(os.path.join(complexor_path, "*"))
+    # Filter out any non-directory items
+    prob_dirs = [d for d in prob_dirs if os.path.isdir(d)]
     
-    # Sort directories by problem number
-    prob_dirs.sort(key=lambda x: int(x.split("_")[-1]))
+    # Sort directories alphabetically
+    prob_dirs.sort()
     
     # Dictionary to store all the processed problems
     combined_data = {}
     
     # Process each problem directory
     for i, prob_dir in enumerate(prob_dirs):
-        # Extract problem number
-        prob_number = prob_dir.split("_")[-1]
+        # Extract problem name (directory name)
+        prob_name = os.path.basename(prob_dir)
         
         # Paths to the description and sample files
         description_path = os.path.join(prob_dir, "description.txt")
@@ -70,7 +72,7 @@ def process_lpwp_dataset():
         }
     
     # Write the combined data to a JSON file
-    output_path = "data/datasets/lpwp_combined_result.json"
+    output_path = "data/datasets/complexor_combined_result.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(combined_data, f, indent=4, ensure_ascii=False)
     
@@ -78,4 +80,4 @@ def process_lpwp_dataset():
     print(f"Processed {len(combined_data)} problems out of {len(prob_dirs)} directories")
 
 if __name__ == "__main__":
-    process_lpwp_dataset() 
+    process_complexor_dataset() 

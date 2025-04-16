@@ -2,24 +2,36 @@
 import os
 import json
 import glob
+import argparse
 
-def process_lpwp_dataset():
-    # Path to the LPWP dataset
-    lpwp_path = "data/datasets/LPWP"
+def process_dataset(dataset_path, output_file, is_numbered=True):
+    """
+    Process a dataset containing problem directories with description.txt and sample.json files.
     
+    Args:
+        dataset_path (str): Path to the dataset directory
+        output_file (str): Path to the output JSON file
+        is_numbered (bool): Whether the directories have numeric indices (e.g., prob_10) or names
+    """
     # Get all problem directories
-    prob_dirs = glob.glob(os.path.join(lpwp_path, "prob_*"))
-    
-    # Sort directories by problem number
-    prob_dirs.sort(key=lambda x: int(x.split("_")[-1]))
+    if is_numbered:
+        prob_dirs = glob.glob(os.path.join(dataset_path, "prob_*"))
+        # Sort directories by problem number for numbered directories
+        prob_dirs.sort(key=lambda x: int(x.split("_")[-1]))
+    else:
+        prob_dirs = glob.glob(os.path.join(dataset_path, "*"))
+        # Filter out any non-directory items
+        prob_dirs = [d for d in prob_dirs if os.path.isdir(d)]
+        # Sort directories alphabetically for named directories
+        prob_dirs.sort()
     
     # Dictionary to store all the processed problems
     combined_data = {}
     
     # Process each problem directory
     for i, prob_dir in enumerate(prob_dirs):
-        # Extract problem number
-        prob_number = prob_dir.split("_")[-1]
+        # Extract problem identifier (directory name or number)
+        prob_id = os.path.basename(prob_dir)
         
         # Paths to the description and sample files
         description_path = os.path.join(prob_dir, "description.txt")
@@ -69,13 +81,24 @@ def process_lpwp_dataset():
             "answer": answer
         }
     
+    # Create directories if they don't exist
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    
     # Write the combined data to a JSON file
-    output_path = "data/datasets/lpwp_combined_result.json"
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(combined_data, f, indent=4, ensure_ascii=False)
     
-    print(f"Processing complete. Output written to {output_path}")
+    print(f"Processing complete. Output written to {output_file}")
     print(f"Processed {len(combined_data)} problems out of {len(prob_dirs)} directories")
 
 if __name__ == "__main__":
-    process_lpwp_dataset() 
+    # Set up command line arguments
+    parser = argparse.ArgumentParser(description='Process a dataset of problems into a combined JSON file.')
+    parser.add_argument('dataset_path', help='Path to the dataset directory')
+    parser.add_argument('output_file', help='Path to the output JSON file')
+    parser.add_argument('--named', action='store_true', help='Use if directories have names instead of numeric indices')
+    
+    args = parser.parse_args()
+    
+    # Process the dataset
+    process_dataset(args.dataset_path, args.output_file, not args.named) 
