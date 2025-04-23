@@ -32,6 +32,7 @@ We propose OR-LLM-Agent, a reasoning LLM-based framework for fully automated OR 
 ## Installation
 ### Prerequisites
 - Python 3.8+
+- Gurobi Optimizer
 
 ### Installation Steps
 ```bash
@@ -45,7 +46,7 @@ pip install -r requirements.txt
 
 ### Getting Started
 ```bash
-# Start evaluate current dataset
+# Start to evaluate current dataset
 python or_llm_eval.py --agent
 
 #if you do not sepcify agent argument, you can use the LLM to solve problems directly
@@ -78,14 +79,49 @@ We have already set a dataset under the data/datasets directory for you, you can
 python data/save_json.py
 ```
 
-You can also get stastic graph for datasets:
+You can also get statistic graph for datasets:
 
 ```bash
 #get the length distribution
 python data/question_length.py
 ```
 
+<br><br>
 
+## Set up MCP Server & Client
+
+We also add a Model Context Protocol(MCP) server to facilitate the utilization of this tool. According to the official document from claude MCP website, we recommend using the `uv` package manager to set up the MCP server.
+
+```bash
+# Create virtual environment and activate it
+uv venv
+source .venv/bin/activate
+
+#install package
+uv add -r requirements.txt
+```
+
+For using in the MCP client, here we use the Claude desktop Client as an example, first you need to add MCP path to the `claude_desktop_config.json`:
+
+```python
+{
+    "mcpServers": {
+        "Optimization": {
+            "command": "/{ABSOLUTE PATH TO UV INSTALLED FOLDER}/uv",
+            "args": [
+                "--directory",
+                "/{ABSOLUTE PATH TO OR-LLM-AGENT FOLDER}",
+                "run",
+                "mcp_server.py.py"
+            ]
+        }
+    }
+}
+```
+
+Then you can open the Claude desktop Client, check if there is a `get_operation_research_problem_answer` in the hammer icon.	
+
+<img src="./assets/mcp_client.PNG" alt="or-llm-agent" width="1000" height="auto" div align=center>
 
 <br><br>
 

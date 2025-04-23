@@ -282,14 +282,16 @@ def parse_args():
                         help='Use the agent. If not specified, directly use the model to solve the problem')
     parser.add_argument('--model', type=str, default='o3-mini',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
+    parser.add_argument('--data_path', type=str, default='data/datasets/dataset_combined_result.json',
+                        help='Path to the dataset JSON file')
     return parser.parse_args()
 
 async def main():
     # Load dataset from JSON file
-    with open('data/datasets/dataset_combined_result.json', 'r') as f:
-        dataset = json.load(f)
-    
     args = parse_args()
+    
+    with open(args.data_path, 'r') as f:
+        dataset = json.load(f)
     
     # Create tasks for all test cases
     tasks = []

@@ -33,6 +33,7 @@ OR-LLM-Agent：基于大型语言模型推理的运筹优化问题建模与求�
 ## 安装方法
 ### 环境要求
 - Python 3.8+
+- Gurobi优化器
 
 ### 安装步骤
 ```bash
@@ -85,6 +86,42 @@ python data/save_json.py
 # 获取问题长度分布
 python data/question_length.py
 ```
+
+<br><br>
+## 设置 MCP 服务器与客户端
+
+我们还添加了一个模型上下文协议（Model Context Protocol，简称 MCP）服务器，以便更好地使用此工具。根据 Claude MCP 官网的官方文档，我们推荐使用 `uv` 包管理器来搭建 MCP 服务器。
+
+```bash
+# 创建虚拟环境并激活
+uv venv
+source .venv/bin/activate
+
+# 安装依赖包
+uv add -r requirements.txt
+```
+
+为了在 MCP 客户端中使用此功能，我们以 Claude 桌面客户端为例，首先你需要在 `claude_desktop_config.json` 中添加 MCP 路径：
+
+```python
+{
+    "mcpServers": {
+        "Optimization": {
+            "command": "/{UV 安装文件夹的绝对路径}/uv",
+            "args": [
+                "--directory",
+                "/{OR-LLM-AGENT 文件夹的绝对路径}",
+                "run",
+                "mcp_server.py.py"
+            ]
+        }
+    }
+}
+```
+
+然后你就可以打开 Claude 桌面客户端，检查锤子图标中是否出现了`get_operation_research_problem_answer` 项。
+
+<img src="./assets/mcp_client.PNG" alt="or-llm-agent" width="1000" height="auto" div align=center>
 
 <br><br>
 

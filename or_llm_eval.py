@@ -24,7 +24,7 @@ load_dotenv()
 # OpenAI API setup
 openai_api_data = dict(
     api_key = os.getenv("OPENAI_API_KEY"),
-    # base_url = "https://ark.cn-beijing.volces.com/api/v3",
+    base_url = os.getenv("OPENAI_API_BASE")
 )  
 
 # Anthropic API setup
@@ -35,7 +35,7 @@ anthropic_api_data = dict(
 # Initialize clients
 openai_client = openai.OpenAI(
     api_key=openai_api_data['api_key'],
-    # base_url=openai_api_data['base_url']
+    base_url=openai_api_data['base_url'] if openai_api_data['base_url'] else None
 )
 
 anthropic_client = anthropic.Anthropic(
@@ -237,14 +237,17 @@ def parse_args():
                         help='Use the agent. If not specified, directly use the model to solve the problem')
     parser.add_argument('--model', type=str, default='o3-mini',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
+    parser.add_argument('--data_path', type=str, default='data/datasets/dataset_combined_result.json',
+                        help='Path to the dataset JSON file')
     return parser.parse_args()
 
 if __name__ == "__main__":
-    with open('data/datasets/dataset_combined_result.json', 'r') as f:
+    args = parse_args()
+    
+    with open(args.data_path, 'r') as f:
         dataset = json.load(f)
     #print(dataset['0'])
 
-    args = parse_args()
     model_name = args.model
 
     pass_count = 0

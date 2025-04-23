@@ -1,0 +1,16 @@
+[project]
+name = "or-llm-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic==0.49.0",
+    "gurobipy==12.0.1",
+    "matplotlib==3.10.1",
+    "mcp[cli]>=1.6.0",
+    "numpy==2.2.3",
+    "openai==1.66.3",
+    "python-dotenv==1.0.1",
+    "scipy==1.15.2",
+]
