@@ -5,11 +5,13 @@ OR-LLM-Agent：基于大型语言模型推理的运筹优化问题建模与求�
 </h1>
 
 [英文版本 English Version](./README.md)
-</div>
 
 <p align="center"> <a href="https://arxiv.org/abs/2503.10009" target="_blank"><img src="https://img.shields.io/badge/arXiv-论文-FF6B6B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a> <a href="https://github.com/bwz96sco/or_llm_agent"><img src="https://img.shields.io/badge/GitHub-代码-4A90E2?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>  </p>
 
 ![](assets/dynamic.gif?autoplay=1)
+</div>
+
+
 
 <br>
 
@@ -90,6 +92,10 @@ python data/question_length.py
 <br><br>
 ## 设置 MCP 服务器与客户端
 
+<div align="center">
+<img src="assets/MCP.gif" alt="MCP Demo" width="800" height="auto">
+</div>
+
 我们还添加了一个模型上下文协议（Model Context Protocol，简称 MCP）服务器，以便更好地使用此工具。根据 Claude MCP 官网的官方文档，我们推荐使用 `uv` 包管理器来搭建 MCP 服务器。
 
 ```bash
@@ -121,7 +127,7 @@ uv add -r requirements.txt
 
 然后你就可以打开 Claude 桌面客户端，检查锤子图标中是否出现了`get_operation_research_problem_answer` 项。
 
-<img src="./assets/mcp_client.PNG" alt="or-llm-agent" width="1000" height="auto" div align=center>
+<img src="./assets/mcp_client.png" alt="mcp_client" width="1000" height="auto" div align=center>
 
 <br><br>
 

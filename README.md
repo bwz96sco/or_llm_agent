@@ -5,11 +5,13 @@ OR-LLM-Agent: Automating Modeling and Solving of Operations Research Optimizatio
 </h1>
 
 [Chinese Version 中文版本](./README_CN.md)
-</div>
 
 <p align="center"> <a href="https://arxiv.org/abs/2503.10009" target="_blank"><img src="https://img.shields.io/badge/arXiv-Paper-FF6B6B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a> <a href="https://github.com/bwz96sco/or_llm_agent"><img src="https://img.shields.io/badge/GitHub-Code-4A90E2?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>  </p>
 
 ![](assets/dynamic.gif?autoplay=1)
+</div>
+
+
 
 <br>
 
@@ -90,6 +92,10 @@ python data/question_length.py
 
 ## Set up MCP Server & Client
 
+<div align="center">
+<img src="assets/MCP.gif" alt="MCP Demo" width="800" height="auto">
+</div>
+
 We also add a Model Context Protocol(MCP) server to facilitate the utilization of this tool. According to the official document from claude MCP website, we recommend using the `uv` package manager to set up the MCP server.
 
 ```bash
@@ -121,7 +127,7 @@ For using in the MCP client, here we use the Claude desktop Client as an example
 
 Then you can open the Claude desktop Client, check if there is a `get_operation_research_problem_answer` in the hammer icon.	
 
-<img src="./assets/mcp_client.PNG" alt="or-llm-agent" width="1000" height="auto" div align=center>
+<img src="./assets/mcp_client.png" alt="mcp_client" width="1000" height="auto" div align=center>
 
 <br><br>
 
