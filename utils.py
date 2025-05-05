@@ -6,33 +6,33 @@ import os
 
 def is_number_string(s):
     """
-    判断字符串是否为数字字符串，包括整数和小数。
+    Determine if a string is a numeric string, including integers and decimals.
 
     Args:
-    s: 要判断的字符串。
+    s: The string to be checked.
 
     Returns:
-    如果字符串是数字字符串，则返回 True，否则返回 False。
+    True if the string is a numeric string, otherwise False.
     """
-    pattern = r"^[-+]?\d+(\.\d+)?$"  # 匹配整数或小数的正则表达式
+    pattern = r"^[-+]?\d+(\.\d+)?$"  # Regular expression to match integers or decimals
     return re.match(pattern, s) is not None
 
 def convert_to_number(s):
     """
-    将字符串转换为数字（整数或浮点数）。
+    Convert a string to a number (integer or float).
 
     Args:
-        s: 要转换的字符串。
+        s: The string to be converted.
 
     Returns:
-        int or float: 如果字符串表示整数则返回int，如果表示小数则返回float。
-        如果转换失败则返回None。
+        int or float: Returns int if the string represents an integer, float if it represents a decimal.
+        Returns None if conversion fails.
     """
     try:
-        # 尝试转换为整数
+        # Try to convert to integer
         if s.isdigit() or (s.startswith('-') and s[1:].isdigit()):
             return int(s)
-        # 尝试转换为浮点数
+        # Try to convert to float
         num = float(s)
         return num
     except (ValueError, TypeError):
@@ -40,13 +40,13 @@ def convert_to_number(s):
 
 def extract_best_objective(output_text):
     """
-    从Gurobi输出中提取Best objective或Optimal objective值。
+    Extract Best objective or Optimal objective value from Gurobi output.
     
     Args:
-        output_text: Gurobi的输出文本
+        output_text: Gurobi output text
     
     Returns:
-        float or None: 最优解值，如果未找到则返回None
+        float or None: Optimal solution value, returns None if not found
     """
     # First check if model is infeasible
     if "Model is infeasible" in output_text:
@@ -68,10 +68,10 @@ def extract_best_objective(output_text):
 
 def extract_and_execute_python_code(text_content):
     """
-    从文本中提取Python代码块并执行。
+    Extract Python code blocks from text and execute them.
 
     Args:
-        text_content: 包含代码块的文本内容。
+        text_content: Text content containing code blocks.
 
     Returns:
         bool: True if execution was successful, False otherwise
@@ -80,16 +80,16 @@ def extract_and_execute_python_code(text_content):
     python_code_blocks = re.findall(r'```python\s*([\s\S]*?)```', text_content)
 
     if not python_code_blocks:
-        print("未找到Python代码块。")
+        print("No Python code blocks found.")
         return False, "No Python code blocks found"
 
     for code_block in python_code_blocks:
         code_block = code_block.strip()
         if not code_block:
-            print("找到一个空的Python代码块，已跳过。")
+            print("Found an empty Python code block, skipped.")
             continue
 
-        print("找到Python代码块，开始执行...")
+        print("Found Python code block, starting execution...")
         try:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp_file:
                 tmp_file.write(code_block)
@@ -98,22 +98,22 @@ def extract_and_execute_python_code(text_content):
             result = subprocess.run([sys.executable, temp_file_path], capture_output=True, text=True, check=False)
 
             if result.returncode == 0:
-                print("Python 代码执行成功，输出:\n")
+                print("Python code executed successfully, output:\n")
                 print(result.stdout)
                 
                 best_obj = extract_best_objective(result.stdout)
                 if best_obj is not None:
-                    print(f"\n最优解值 (Best objective): {best_obj}")
+                    print(f"\nOptimal solution value (Best objective): {best_obj}")
                 else:
-                    print("\n未找到最优解值")
+                    print("\nOptimal solution value not found")
                 return True, str(best_obj)
             else:
-                print(f"Python 代码执行出错，错误信息:\n")
+                print(f"Python code execution error, error message:\n")
                 print(result.stderr)
                 return False, result.stderr
 
         except Exception as e:
-            print(f"执行Python代码块时发生错误: {e}")
+            print(f"Error occurred while executing Python code block: {e}")
             return False, str(e)
         finally:
             if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
@@ -132,7 +132,7 @@ def eval_model_result(success, result, ground_truth, err_range=0.1):
             ground_truth_num = convert_to_number(str(ground_truth))
             if abs(result_num - ground_truth_num) < err_range:
                 correct_flag = True
-        elif result == 'None': # no avai solution
+        elif result == 'None': # no available solution
             if ground_truth is None or ground_truth == 'None':
                 correct_flag = True
     return pass_flag, correct_flag 
