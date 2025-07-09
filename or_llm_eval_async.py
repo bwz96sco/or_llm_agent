@@ -246,10 +246,10 @@ async def process_single_case(i, d, args):
     """
     Process a single test case
     """
-    print(f"=============== num {i} ==================")
+    # print(f"=============== num {i} ==================")
     user_question, answer = d['question'], d['answer']
-    print(user_question)
-    print('-------------')
+    # print(user_question)
+    # print('-------------')
     
     if args.agent:
         is_solve_success, llm_result = await async_or_llm_agent(user_question, args.model)
@@ -264,6 +264,9 @@ async def process_single_case(i, d, args):
     
     pass_flag, correct_flag = eval_model_result(is_solve_success, llm_result, answer)
     
+    print(f"=============== num {i} ==================")
+    print(user_question)
+    print('-------------')
     print(f'solve: {is_solve_success}, llm: {llm_result}, ground truth: {answer}')
     print(f'[Final] run pass: {pass_flag}, solve correct: {correct_flag}')
     print(' ')
