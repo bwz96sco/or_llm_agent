@@ -37,7 +37,7 @@
     "7": {
         "index": 7,
         "question": "\n    某公司承担 4 条航线的运输任务，已知：\n\\begin{enumerate}\n    \\item 各条航线的起点城市和终点城市及每天的航班数（见表 3-21）。\n    \\item 各城市间的航行时间（见表 3-22）。\n    \\item 所有航线都使用同一种船只，每次装船和卸船时间均为 1 天。\n\\end{enumerate}\n问该公司至少应配备多少条船才能满足所有航线运输的需要？\n\n\\begin{table}[h]\n    \\centering\n    \\caption{各航线信息（表 3-21）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|c|c|c}\n        \\toprule\n        航线 & 起点城市 & 终点城市 & 每天航班数量 \\\\\n        \\midrule\n        1 & E & D & 3 \\\\\n        2 & B & C & 2 \\\\\n        3 & A & F & 1 \\\\\n        4 & D & B & 1 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n\n\\begin{table}[h]\n    \\centering\n    \\caption{各城市间的航行时间（天）（表 3-22）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|cccccc}\n        \\toprule\n        从$\\backslash$至 & A & B & C & D & E & F \\\\\n        \\midrule\n        A & 0 & 1 & 2 & 14 & 7 & 7 \\\\\n        B & 1 & 0 & 3 & 13 & 8 & 8 \\\\\n        C & 2 & 3 & 0 & 15 & 5 & 5 \\\\\n        D & 14 & 13 & 15 & 0 & 17 & 20 \\\\\n        E & 7 & 8 & 5 & 17 & 0 & 3 \\\\\n        F & 7 & 8 & 5 & 20 & 3 & 0 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n",
-        "answer": 7.0
+        "answer": 91.0
     },
     "8": {
         "index": 8,
@@ -106,19 +106,15 @@
     },
     "21": {
         "index": 21,
-        "question": "\n    为保证某设备正常运转，需对串联工作的三种不同零件 $A_1, A_2, A_3$ 分别确定备件数量。若增加备用零件的数量，可提高设备正常运转的可靠性，但费用要增加，而总投资额为 8 千元。已知备用零件数量与它的可靠性和费用关系如表 7-19 所示，求 $A_1, A_2, A_3$ 的备用零件数量各为多少时，可使设备运转的可靠性最高。\n使用数学模型求解\n\\begin{table}[h]\n    \\centering\n    \\caption{备用零件数量与可靠性及费用关系（表 7-19）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|ccc|ccc}\n        \\toprule\n        备件数 & \\multicolumn{3}{c|}{可靠性} & \\multicolumn{3}{c}{备用零件费用 / 千元} \\\\\n        \\cmidrule(lr){2-4} \\cmidrule(lr){5-7}\n        & $A_1$ & $A_2$ & $A_3$ & $A_1$ & $A_2$ & $A_3$ \\\\\n        \\midrule\n        1 & 0.3 & 0.2 & 0.1 & 1 & 3 & 2 \\\\\n        2 & 0.4 & 0.5 & 0.2 & 2 & 5 & 3 \\\\\n        3 & 0.5 & 0.9 & 0.7 & 3 & 6 & 4 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n",
-        "answer": 3.170085660699
+        "question": "\n    为保证某设备正常运转，需对串联工作的三种不同零件 $A_1, A_2, A_3$ 分别确定备件数量。若增加备用零件的数量，可提高设备正常运转的可靠性，但费用要增加，而总投资额为 8 千元。已知备用零件数量与它的可靠性和费用关系如表 7-19 所示，求 $A_1, A_2, A_3$ 的备用零件数量各为多少时，可使设备运转的可靠性最高（最大化设备总可靠性的对数和）。\n使用数学模型求解\n\\begin{table}[h]\n    \\centering\n    \\caption{备用零件数量与可靠性及费用关系（表 7-19）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|ccc|ccc}\n        \\toprule\n        备件数 & \\multicolumn{3}{c|}{可靠性} & \\multicolumn{3}{c}{备用零件费用 / 千元} \\\\\n        \\cmidrule(lr){2-4} \\cmidrule(lr){5-7}\n        & $A_1$ & $A_2$ & $A_3$ & $A_1$ & $A_2$ & $A_3$ \\\\\n        \\midrule\n        1 & 0.3 & 0.2 & 0.1 & 1 & 3 & 2 \\\\\n        2 & 0.4 & 0.5 & 0.2 & 2 & 5 & 3 \\\\\n        3 & 0.5 & 0.9 & 0.7 & 3 & 6 & 4 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n",
+        "answer": -3.170085660699
     },
     "22": {
         "index": 22,
         "question": "\n    已知 4 个城市间距离如表 7-24 所示，求从 $v_1$ 出发，经过其余城市一次且仅一次，最后返回 $v_1$ 的最短路径与距离。要求用动态规划求解。\n\n\\begin{table}[h]\n    \\centering\n    \\caption{城市间距离矩阵（表 7-24）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|cccc}\n        \\toprule\n        距离 $d(v_i, v_j)$ & 1 & 2 & 3 & 4 \\\\\n        \\midrule\n        1 & 0 & 6 & 7 & 9 \\\\\n        2 & 8 & 0 & 9 & 7 \\\\\n        3 & 5 & 8 & 0 & 8 \\\\\n        4 & 6 & 5 & 5 & 0 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n",
         "answer": 23.0
     },
-    "23": {
-        "index": 23,
-        "question": "\n    8.19 甲、乙、丙、丁、戊、已6人组成一个小组,检查5个单位的工作,若第1单位和乙、丙、丁三人有工作联系,则用{乙,丙,丁)表示,其余四个单位依次分别为(甲,戊,已)，(甲,乙,戊,已〉,(甲,乙,丁,已},(甲,乙,丙}。若到一个单位去检查工作的人只需1人,但必须是和该单位没有联系的人，问应如何安排?",
-        "answer": 0
-    },
+    
     "24": {
         "index": 24,
         "question": "\n    表 \\ref{table14-1} 中列出了 6 个工作分别在设备 A 和 B 上的加工时间 $A_j$ (min) 和 $B_j$ (min)，\n所有工作都先在 A 上加工，再在 B 上加工。要求确定使总加工时间最短的工作加工顺序。\n\n\\begin{table}[h]\n    \\centering\n    \\caption{设备 A 和 B 的加工时间}\n    \\label{table14-1}\n    \\begin{tabular}{|c|c|c|c|c|c|c|}\n        \\hline\n        \\textbf{加工时间} & \\textbf{工作 1} & \\textbf{工作 2} & \\textbf{工作 3} & \\textbf{工作 4} & \\textbf{工作 5} & \\textbf{工作 6} \\\\\n        \\hline\n        A & 30 & 60 & 60 & 20 & 80 & 90 \\\\\n        \\hline\n        B & 70 & 70 & 50 & 60 & 30 & 40 \\\\\n        \\hline\n    \\end{tabular}\n\\end{table}\n",
@@ -167,7 +163,7 @@
     "33": {
         "index": 33,
         "question": "\n\n1.35对某厂I，Ⅱ，Ⅲ三种产品下一年各季度的合同预订数如表1-10所示。  \n\n表 1-10  \n\n\n<html><body><table><tr><td rowspan=\"2\">产品</td><td colspan=\"4\">季 度</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr><tr><td>I</td><td>1 500</td><td>1 000</td><td>2000</td><td>1 200</td></tr><tr><td>Ⅱ</td><td>1 500</td><td>1 500</td><td>1 200</td><td>1 500</td></tr><tr><td>Ⅲ</td><td>1 000</td><td>2 000</td><td>1500</td><td>2500</td></tr></table></body></html>  \n\n该三种产品1季度初无库存,要求在4 季度末各库存150 件。已知该厂每季度生产工时为 $15~000~\\mathrm{h}$ ,生产I、Ⅱ、Ⅲ产品每件分别需时 $2, 4, 3\\,\\mathrm{~h~}$ 。因更换工艺装备，产品I在2 季度无法生产。规定当产品不能按期交货时,产品I、Ⅱ每件每迟交一个季度赔偿 20元,产品Ⅲ赔偿10元；又生产出的产品不在本季度交货的,每件每季度的库存费用为5元。问该厂应如何安排生产,使总的赔偿加库存的费用为最小。  \n",
-        "answer": 8505.0
+        "answer": 10750.0
     },
     "34": {
         "index": 34,
@@ -206,8 +202,8 @@
     },
     "41": {
         "index": 41,
-        "question": "\n\n3.6某玩具公司分别生产三种新型玩具,每月可供量分别为1000件、2000件和2 000件,它们分别被送到甲、乙、丙三个百货商店销售。已知每月百货商店各类玩具预期销售量均为1500件，由于经营方面原因,各商店销售不同玩具的赢利额不同(见表3-6)。又知丙百货商店要求至少供应C玩具1000件，而拒绝进A种玩具。求满足上述条件下使总赢利额为最大的供销分配方案。  \n\n表3-6  \n\n\n<html><body><table><tr><td></td><td>甲</td><td>乙</td><td>丙</td><td>可供量</td></tr><tr><td>A</td><td>5</td><td>4</td><td></td><td>1 000</td></tr><tr><td>B</td><td>16</td><td>8</td><td>6</td><td>2000</td></tr><tr><td>C</td><td>12</td><td>10</td><td>11</td><td>2 000</td></tr></table></body></html>  \n\n",
-        "answer": 51500.0
+        "question": "\n\n3.6某玩具公司分别生产三种新型玩具,每月可供量分别为1000件、2000件和2 000件,它们分别被送到甲、乙、丙三个百货商店销售。已知每月百货商店各类玩具预期销售量均为各1500件，由于经营方面原因,各商店销售不同玩具的赢利额不同(见表3-6)。又知丙百货商店要求至少供应C玩具1000件，而拒绝进A种玩具。求满足上述条件下使总赢利额为最大的供销分配方案。  \n\n表3-6  \n\n\n<html><body><table><tr><td></td><td>甲</td><td>乙</td><td>丙</td><td>可供量</td></tr><tr><td>A</td><td>5</td><td>4</td><td></td><td>1 000</td></tr><tr><td>B</td><td>16</td><td>8</td><td>6</td><td>2000</td></tr><tr><td>C</td><td>12</td><td>10</td><td>11</td><td>2 000</td></tr></table></body></html>  \n\n",
+        "answer": 56000.0
     },
     "42": {
         "index": 42,
@@ -302,7 +298,7 @@
     "60": {
         "index": 60,
         "question": "\n5.31团结乡有8个村镇，各村镇位置坐标及小学生人数如表5-14所示。  \n\n表5-14  \n\n\n<html><body><table><tr><td rowspan=\"2\">村镇代号</td><td colspan=\"2\">坐标位置</td><td rowspan=\"2\">小学生人数</td></tr><tr><td>x</td><td>y</td></tr><tr><td>1</td><td>0</td><td>0</td><td>60</td></tr><tr><td>2</td><td>10</td><td>3</td><td>80</td></tr><tr><td>3</td><td>12</td><td>15</td><td>100</td></tr><tr><td>4</td><td>14</td><td>13</td><td>120</td></tr><tr><td>5</td><td>16</td><td>9</td><td>80</td></tr><tr><td>6</td><td>18</td><td>6</td><td>60</td></tr><tr><td>7</td><td>8</td><td>12</td><td>40</td></tr><tr><td>8</td><td>6</td><td>10</td><td>80</td></tr></table></body></html>  \n\n考虑到学校的规模效益,拟选其中两个村镇各建一所小学。问两所小学各建于何处，使小学生上学所走路程为最短(小学生所走路程按两村镇之间的欧氏距离计算)。 \n\n",
-        "answer": 2582
+        "answer": 2582.180986008
     },
     "61": {
         "index": 61,
@@ -332,7 +328,7 @@
     "66": {
         "index": 66,
         "question": "\n\n  7.15某商店在未来的4个月里·准备利用商店里一个仓库来专门经销某种商品，该仓库最多能储存这种商品1000单位。假定商店每月只能卖出它仓库现有的货。当商店决定在某个月购货时,只有在该月的下个月开始才能得到该货。据估计未来4个月这种商品买卖价格如表7-6所示。假定商店在1月开始经销时，仓库已储存商品500单位。试问：如何制订这 4个月的订购与销售计划,使获得利润最大？(不考虑仓库的存储费用，商品为整数)  \n\n  表 7-6  \n\n\n  <html><body><table><tr><td>月份（k)</td><td>买价</td><td>卖价</td></tr><tr><td>1</td><td>10</td><td>12</td></tr><tr><td>2</td><td>9</td><td>9</td></tr><tr><td>3</td><td>11</td><td>13</td></tr><tr><td>4</td><td>15</td><td>17</td></tr></table></body></html>  \n",
-        "answer": 6000.0
+        "answer": 16000.0
     },
     "67": {
         "index": 67,
