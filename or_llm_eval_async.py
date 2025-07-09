@@ -86,7 +86,7 @@ async def async_query_llm(messages, model_name="o3-mini", temperature=0.2):
 
 async def async_extract_and_execute_python_code(text_content):
     """
-    Async version of extract_and_execute_python_code
+    Async version of extract_and_execute_python_code with 60-second timeout
     """
     python_code_blocks = re.findall(r'```python\s*([\s\S]*?)```', text_content)
 
@@ -106,13 +106,27 @@ async def async_extract_and_execute_python_code(text_content):
                 tmp_file.write(code_block)
                 temp_file_path = tmp_file.name
 
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable,
-                temp_file_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
+            # Add timeout to prevent infinite loops or long-running code
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    sys.executable,
+                    temp_file_path,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                # Wait for process completion with 60-second timeout
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60.0)
+                
+            except asyncio.TimeoutError:
+                print("Python 代码执行超时 (60秒)，可能存在无限循环或长时间运行的代码")
+                # Kill the process if it's still running
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except:
+                    pass
+                return False, "Code execution timeout (60 seconds) - possible infinite loop"
             
             if proc.returncode == 0:
                 print("Python 代码执行成功，输出:\n")
@@ -296,20 +310,50 @@ async def main():
     with open(args.data_path, 'r') as f:
         dataset = json.load(f)
     
-    # Create tasks for all test cases
-    tasks = []
-    for i, d in dataset.items():
-        task = process_single_case(i, d, args)
-        tasks.append(task)
+    # Convert dataset items to a list for easier chunking
+    dataset_items = list(dataset.items())
     
-    # Run all tasks concurrently and gather results
-    results = await asyncio.gather(*tasks)
+    # Process dataset in batches of 50
+    batch_size = 20
+    all_results = []
+    total_batches = (len(dataset_items) + batch_size - 1) // batch_size  # Ceiling division
     
-    # Process results
-    pass_count = sum(1 for _, pass_flag, _, _ in results if pass_flag)
-    correct_count = sum(1 for _, _, correct_flag, _ in results if correct_flag)
-    error_datas = [i for _, pass_flag, correct_flag, i in results if not pass_flag or not correct_flag]
+    for batch_num in range(total_batches):
+        start_idx = batch_num * batch_size
+        end_idx = min(start_idx + batch_size, len(dataset_items))
+        batch_items = dataset_items[start_idx:end_idx]
+        
+        print(f"\n{'='*50}")
+        print(f"Processing batch {batch_num + 1}/{total_batches} (cases {start_idx + 1}-{end_idx})")
+        print(f"{'='*50}\n")
+        
+        # Create tasks for current batch
+        tasks = []
+        for i, d in batch_items:
+            task = process_single_case(i, d, args)
+            tasks.append(task)
+        
+        # Run current batch concurrently and gather results
+        batch_results = await asyncio.gather(*tasks)
+        all_results.extend(batch_results)
+        
+        # Print batch summary
+        batch_pass_count = sum(1 for _, pass_flag, _, _ in batch_results if pass_flag)
+        batch_correct_count = sum(1 for _, _, correct_flag, _ in batch_results if correct_flag)
+        print(f"\nBatch {batch_num + 1} Summary:")
+        print(f"  Processed: {len(batch_results)} cases")
+        print(f"  Run pass: {batch_pass_count}")
+        print(f"  Solve correct: {batch_correct_count}")
+        print(f"  Completed: {end_idx}/{len(dataset_items)} total cases")
     
+    # Process final results
+    pass_count = sum(1 for _, pass_flag, _, _ in all_results if pass_flag)
+    correct_count = sum(1 for _, _, correct_flag, _ in all_results if correct_flag)
+    error_datas = [i for _, pass_flag, correct_flag, i in all_results if not pass_flag or not correct_flag]
+    
+    print(f"\n{'='*50}")
+    print("FINAL RESULTS")
+    print(f"{'='*50}")
     print(f'[Total {len(dataset)}] run pass: {pass_count}, solve correct: {correct_count}')
     print(f'[Total fails {len(error_datas)}] error datas: {error_datas}')
 
