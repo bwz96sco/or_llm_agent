@@ -179,3 +179,5 @@ data/datasets/LPWP
 data/datasets/ComplexOR
 
 model.ilp
+
+*.ilp
