@@ -42,47 +42,71 @@ anthropic_client = anthropic.AsyncAnthropic(
     api_key=anthropic_api_data['api_key']
 )
 
-async def async_query_llm(messages, model_name="o3-mini", temperature=0.2):
+async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_attempts=3):
     """
-    Async version of query_llm that supports both OpenAI and Claude models
+    Async version of query_llm that supports both OpenAI and Claude models with retry functionality
     """
-    # Check if model is Claude (Anthropic)
-    if model_name.lower().startswith("claude"):
-        # Convert OpenAI message format to Anthropic format
-        system_message = next((m["content"] for m in messages if m["role"] == "system"), "")
-        user_messages = [m["content"] for m in messages if m["role"] == "user"]
-        assistant_messages = [m["content"] for m in messages if m["role"] == "assistant"]
-        
-        # Combine messages into a single conversation string
-        conversation = system_message + "\n\n"
-        for user_msg, asst_msg in zip_longest(user_messages, assistant_messages, fillvalue=None):
-            if user_msg:
-                conversation += f"Human: {user_msg}\n\n"
-            if asst_msg:
-                conversation += f"Assistant: {asst_msg}\n\n"
-        
-        # Add the final user message if there is one
-        if len(user_messages) > len(assistant_messages):
-            conversation += f"Human: {user_messages[-1]}\n\n"
+    import time
+    
+    for attempt in range(max_attempts):
+        try:
+            # Check if model is Claude (Anthropic)
+            if model_name.lower().startswith("claude"):
+                # Convert OpenAI message format to Anthropic format
+                system_message = next((m["content"] for m in messages if m["role"] == "system"), "")
+                user_messages = [m["content"] for m in messages if m["role"] == "user"]
+                assistant_messages = [m["content"] for m in messages if m["role"] == "assistant"]
+                
+                # Combine messages into a single conversation string
+                conversation = system_message + "\n\n"
+                for user_msg, asst_msg in zip_longest(user_messages, assistant_messages, fillvalue=None):
+                    if user_msg:
+                        conversation += f"Human: {user_msg}\n\n"
+                    if asst_msg:
+                        conversation += f"Assistant: {asst_msg}\n\n"
+                
+                # Add the final user message if there is one
+                if len(user_messages) > len(assistant_messages):
+                    conversation += f"Human: {user_messages[-1]}\n\n"
 
-        response = await anthropic_client.messages.create(
-            model=model_name,
-            max_tokens=8192,
-            temperature=temperature,
-            messages=[{
-                "role": "user",
-                "content": conversation
-            }]
-        )
-        return response.content[0].text
-    else:
-        # Use OpenAI API
-        response = await openai_client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            temperature=temperature
-        )
-        return response.choices[0].message.content
+                response = await anthropic_client.messages.create(
+                    model=model_name,
+                    max_tokens=8192,
+                    temperature=temperature,
+                    messages=[{
+                        "role": "user",
+                        "content": conversation
+                    }]
+                )
+                return response.content[0].text
+            else:
+                # Use OpenAI API
+                response = await openai_client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=temperature
+                )
+                return response.choices[0].message.content
+                
+        except (openai.APIConnectionError, anthropic.APIConnectionError) as e:
+            print(f"[Connection Error] Attempt {attempt + 1}/{max_attempts} failed for model {model_name}")
+            print(f"[Connection Error] Error details: {str(e)}")
+            print(f"[Connection Error] Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            if attempt < max_attempts - 1:
+                # Exponential backoff: 2^attempt seconds (2, 4, 8, ...)
+                wait_time = 2 ** attempt
+                print(f"[Connection Error] Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"[Connection Error] Max attempts ({max_attempts}) reached. Giving up.")
+                raise e
+                
+        except Exception as e:
+            # For other types of errors, don't retry
+            print(f"[API Error] Non-connection error occurred with model {model_name}: {str(e)}")
+            print(f"[API Error] Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            raise e
 
 async def async_extract_and_execute_python_code(text_content):
     """
