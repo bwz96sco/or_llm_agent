@@ -95,7 +95,7 @@ async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_a
             
             if attempt < max_attempts - 1:
                 # Exponential backoff: 2^attempt seconds (2, 4, 8, ...)
-                wait_time = 2 ** attempt
+                wait_time = 60 * (attempt + 1)
                 print(f"[Connection Error] Retrying in {wait_time} seconds...")
                 await asyncio.sleep(wait_time)
             else:
