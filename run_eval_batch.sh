@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Shell script to run OR-LLM evaluation on multiple datasets with logging
-# This script runs the async evaluation with o3 model on two different datasets
+# This script runs the async evaluation with gemini-2.5-pro model
 
 echo "Starting OR-LLM evaluation batch process..."
 echo "Timestamp: $(date)"
@@ -12,10 +12,10 @@ mkdir -p logs
 
 # First evaluation: dataset_md_result.json
 echo "Running evaluation on data/datasets/ORLM/IndustryOR.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json..."
-echo "Command: python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/IndustryOR.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
-echo "Log file: logs/eval_IndustryOR_result_$(date +%Y%m%d_%H%M%S).log"
+echo "Command: python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/IndustryOR.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
+echo "Log file: logs/eval_IndustryOR_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log"
 
-python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/IndustryOR.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_IndustryOR_result_$(date +%Y%m%d_%H%M%S).log 2>&1
+python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/IndustryOR.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_IndustryOR_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log 2>&1
 
 if [ $? -eq 0 ]; then
     echo "✓ First evaluation completed successfully"
@@ -27,10 +27,10 @@ echo ""
 
 # Second evaluation: removed.json
 echo "Running evaluation on data/datasets/ORLM/MAMO.ComplexLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json..."
-echo "Command: python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/MAMO.ComplexLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
-echo "Log file: logs/eval_ComplexLP_$(date +%Y%m%d_%H%M%S).log"
+echo "Command: python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/MAMO.ComplexLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
+echo "Log file: logs/eval_ComplexLP_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log"
 
-python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/MAMO.ComplexLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_ComplexLP_$(date +%Y%m%d_%H%M%S).log 2>&1
+python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/MAMO.ComplexLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_ComplexLP_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log 2>&1
 
 if [ $? -eq 0 ]; then
     echo "✓ Second evaluation completed successfully"
@@ -40,28 +40,28 @@ fi
 
 # Third evaluation: removed.json
 echo "Running evaluation on data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json..."
-echo "Command: python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
-echo "Log file: logs/eval_EasyLP_$(date +%Y%m%d_%H%M%S).log"
+echo "Command: python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
+echo "Log file: logs/eval_EasyLP_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log"
 
-python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_EasyLP_$(date +%Y%m%d_%H%M%S).log 2>&1
+python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_EasyLP_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log 2>&1
 
 if [ $? -eq 0 ]; then
-    echo "✓ Second evaluation completed successfully"
+    echo "✓ Third evaluation completed successfully"
 else
-    echo "✗ Second evaluation failed with exit code $?"
+    echo "✗ Third evaluation failed with exit code $?"
 fi
 
 # Fourth evaluation: removed.json
 echo "Running evaluation on data/datasets/ORLM/NL4OPT.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json..."
-echo "Command: python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/NL4OPT.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
-echo "Log file: logs/eval_NL4OPT_$(date +%Y%m%d_%H%M%S).log"
+echo "Command: python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/NL4OPT.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
+echo "Log file: logs/eval_NL4OPT_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log"
 
-python or_llm_eval_async.py --model o3 --data_path data/datasets/ORLM/NL4OPT.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_NL4OPT_$(date +%Y%m%d_%H%M%S).log 2>&1
+python or_llm_eval_async.py --model gemini-2.5-pro --data_path data/datasets/ORLM/NL4OPT.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json > logs/eval_NL4OPT_gemini-2.5-pro_$(date +%Y%m%d_%H%M%S).log 2>&1
 
 if [ $? -eq 0 ]; then
-    echo "✓ Second evaluation completed successfully"
+    echo "✓ Fourth evaluation completed successfully"
 else
-    echo "✗ Second evaluation failed with exit code $?"
+    echo "✗ Fourth evaluation failed with exit code $?"
 fi
 
 echo ""
