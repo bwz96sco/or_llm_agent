@@ -23,8 +23,8 @@ load_dotenv()
 
 # OpenAI API setup
 openai_api_data = dict(
-    api_key = os.getenv("OPEN_ROUTER_API_KEY"),
-    base_url = os.getenv("OPEN_ROUTER_API_BASE")
+    api_key = os.getenv("OPENAI_API_KEY_direct"),
+    base_url = os.getenv("OPENAI_API_BASE")
 )
 
 # Anthropic API setup

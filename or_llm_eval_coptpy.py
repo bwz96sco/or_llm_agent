@@ -23,8 +23,8 @@ load_dotenv()
 
 # OpenAI API setup
 openai_api_data = dict(
-    api_key = os.getenv("OPEN_ROUTER_API_KEY"),
-    base_url = os.getenv("OPEN_ROUTER_API_BASE")
+    api_key = os.getenv("SILICONFLOW_API_KEY"),
+    base_url = os.getenv("SILICONFLOW_API_BASE")
 )
 
 # Anthropic API setup
@@ -180,103 +180,21 @@ async def async_extract_and_execute_python_code(text_content):
 
 async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_attempts=3):
     """
-    Async version of gpt_code_agent_simple
+    Async version of gpt_code_agent_simple with coptpy prompt
     """
     messages = [
-        {"role": "system", "content": (
-            "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，并写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
-            "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-            "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-        )},
-        {"role": "user", "content": user_question}
+        {"role": "user", "content": (
+            "Below is an operations research question. Build a mathematical model and corresponding python code using `coptpy` that appropriately addresses the question.\n\n"
+            f"# Question:\n{user_question}\n\n# Response:"
+        )}
     ]
 
-    gurobi_code = await async_query_llm(messages, model_name)
-    print("【Python Gurobi 代码】:\n", gurobi_code)
-    text = f"{gurobi_code}"
+    coptpy_code = await async_query_llm(messages, model_name)
+    print("【Python COPTPY 代码】:\n", coptpy_code)
+    text = f"{coptpy_code}"
     is_solve_success, result = await async_extract_and_execute_python_code(text)
     
     print(f'Stage result: {is_solve_success}, {result}')
-    
-    return is_solve_success, result
-
-async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
-    messages = copy.deepcopy(messages_bak)
-
-    gurobi_code = await async_query_llm(messages, model_name)
-    print("【Python Gurobi 代码】:\n", gurobi_code)
-
-    text = f"{gurobi_code}"
-    attempt = 0
-    while attempt < max_attempts:
-        success, error_msg = await async_extract_and_execute_python_code(text)
-        if success:
-            messages_bak.append({"role": "assistant", "content": gurobi_code})
-            return True, error_msg, messages_bak
-
-        print(f"\n第 {attempt + 1} 次尝试失败，请求 LLM 修复代码...\n")
-
-        messages.append({"role": "assistant", "content": gurobi_code})
-        messages.append({"role": "user", "content": f"代码执行出现错误，错误信息如下:\n{error_msg}\n请修复代码并重新提供完整的可执行代码。"})
-
-        gurobi_code = await async_query_llm(messages, model_name)
-        text = f"{gurobi_code}"
-
-        print("\n获取到修复后的代码，准备重新执行...\n")
-        attempt += 1
-
-    messages_bak.append({"role": "assistant", "content": gurobi_code})
-    print(f"达到最大尝试次数 ({max_attempts})，未能成功执行代码。")
-    return False, None, messages_bak
-
-async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
-    """
-    Async version of or_llm_agent function.
-    """
-    # Initialize conversation history
-    messages = [
-        {"role": "system", "content": (
-            "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，以数学（线性规划）模型对原问题进行有效建模。"
-            "尽量关注获得一个正确的数学模型表达式，无需太关注解释。"
-            "该模型后续用作指导生成gurobi代码，这一步主要用作生成有效的线性规模表达式。"
-        )},
-        {"role": "user", "content": user_question}
-    ]
-
-    # 1. Generate mathematical model
-    math_model = await async_query_llm(messages, model_name)
-    print("【数学模型】:\n", math_model)
-    
-    validate_math_model = math_model
-    messages.append({"role": "assistant", "content": validate_math_model})
-    
-    messages.append({"role": "user", "content": (
-        "请基于以上的数学模型，写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
-        "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-        "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-    )})
-
-    # copy msg; solve; add the last gurobi code 
-    is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts)
-    print(f'Stage result: {is_solve_success}, {result}')
-    
-    if is_solve_success:
-        if not is_number_string(result):
-            print('!![No available solution warning]!!')
-            messages.append({"role": "user", "content": (
-                "现有模型运行结果为*无可行解*，请认真仔细地检查数学模型和gurobi代码，是否存在错误，以致于造成无可行解"
-                "检查完成后，最终请重新输出gurobi python代码"
-                "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-            )})
-            is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=1)
-    else:
-        print('!![Max attempt debug error warning]!!')
-        messages.append({"role": "user", "content": (
-                "现在模型代码多次调试仍然报错，请认真仔细地检查数学模型是否存在错误"
-                "检查后最终请重新构建gurobi python代码"
-                "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-            )})
-        is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=2)
     
     return is_solve_success, result
 
@@ -284,15 +202,9 @@ async def process_single_case(i, d, args):
     """
     Process a single test case
     """
-    # print(f"=============== num {i} ==================")
     user_question, answer = d['question'], d['answer']
-    # print(user_question)
-    # print('-------------')
     
-    if args.agent:
-        is_solve_success, llm_result = await async_or_llm_agent(user_question, args.model)
-    else:
-        is_solve_success, llm_result = await async_gpt_code_agent_simple(user_question, args.model)
+    is_solve_success, llm_result = await async_gpt_code_agent_simple(user_question, args.model)
         
     if is_solve_success:
         print(f"成功执行代码，最优解值: {llm_result}")
@@ -318,9 +230,7 @@ def parse_args():
     Returns:
         argparse.Namespace: The parsed arguments
     """
-    parser = argparse.ArgumentParser(description='Run optimization problem solving with LLMs (async version)')
-    parser.add_argument('--agent', action='store_true', 
-                        help='Use the agent. If not specified, directly use the model to solve the problem')
+    parser = argparse.ArgumentParser(description='Run optimization problem solving with LLMs using COPTPY (async version)')
     parser.add_argument('--model', type=str, default='o3-mini',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
     parser.add_argument('--data_path', type=str, default='data/datasets/dataset_combined_result.json',
@@ -337,7 +247,7 @@ async def main():
     # Convert dataset items to a list for easier chunking
     dataset_items = list(dataset.items())
     
-    # Process dataset in batches of 50
+    # Process dataset in batches of 20
     batch_size = 20
     all_results = []
     total_batches = (len(dataset_items) + batch_size - 1) // batch_size  # Ceiling division
@@ -383,4 +293,4 @@ async def main():
 
 if __name__ == "__main__":
     # Running as script
-    asyncio.run(main())
+    asyncio.run(main()) 
