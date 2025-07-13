@@ -91,7 +91,7 @@
     },
     "18": {
         "index": 18,
-        "question": "\n    篮球队需要选择 5 名队员组成出场阵容参加比赛。8 名队员的身高及擅长位置见表 5-11。\n\n\\begin{table}[h]\n    \\centering\n    \\caption{队员身高及擅长位置（表 5-11）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|cccccccc}\n        \\toprule\n        队员 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\\\\n        \\midrule\n        身高 (m) & 1.92 & 1.90 & 1.88 & 1.86 & 1.85 & 1.83 & 1.80 & 1.78 \\\\\n        擅长位置 & 中锋 & 中锋 & 前锋 & 前锋 & 前锋 & 后卫 & 后卫 & 后卫 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n\n出场阵容应满足以下条件：\n\\begin{enumerate}\n    \\item 必须且只有一名中锋上场；\n    \\item 至少有一名前锋上场；\n    \\item 如 1 号或 4 号上场，则 6 号也上场，反之如 6 号上场，则 1 号和 4 号均不上场；\n    \\item 2 号和 8 号至少有一个不出场。\n\\end{enumerate}\n\n问应当选择哪 5 名队员上场，才能使出场队员平均身高最高，试建立数学模型。\n",
+        "question": "\n    篮球队需要选择 5 名队员组成出场阵容参加比赛。8 名队员的身高及擅长位置见表 5-11。\n\n\\begin{table}[h]\n    \\centering\n    \\caption{队员身高及擅长位置（表 5-11）}\n    \\renewcommand{\\arraystretch}{1.2}\n    \\begin{tabular}{c|cccccccc}\n        \\toprule\n        队员 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\\\\n        \\midrule\n        身高 (m) & 1.92 & 1.90 & 1.88 & 1.86 & 1.85 & 1.83 & 1.80 & 1.78 \\\\\n        擅长位置 & 中锋 & 中锋 & 前锋 & 前锋 & 前锋 & 后卫 & 后卫 & 后卫 \\\\\n        \\bottomrule\n    \\end{tabular}\n\\end{table}\n\n出场阵容应满足以下条件：\n\\begin{enumerate}\n    \\item 必须且只有一名中锋上场；\n    \\item 至少有一名前锋上场；\n    \\item 如 1 号或 4 号上场，则 6 号也上场，反之如 6 号上场，则 1 号和 4 号均不上场；\n    \\item 2 号和 8 号至少有一个不出场。\n\\end{enumerate}\n\n问应当选择哪 5 名队员上场，才能使出场队员总身高最高，试建立数学模型。\n",
         "answer": 9.26
     },
     "19": {
@@ -401,7 +401,7 @@
     },
     "80": {
         "index": 80,
-        "question": "\n  甜甜食品公司下属的一个食品厂生产两种点心I和Ⅱ，采用原料A和B。已知生产每盒产品I和Ⅱ时消耗的原料 $\\mathbf{kg}$ 数，原料月供应量、原料单价及两种点心的批发价（千元/千盒)如表C-5所示。  \n\n  表C-5  \n\n  \\begin{table}[h]\n  \\centering\n  \\caption{Table C-5}\n  \\begin{tabular}{cccccc}\n  \\toprule\n  \\multicolumn{2}{c}{\\textbf{产品}} & \\multirow{2}{*}{\\textbf{I}} & \\multirow{2}{*}{\\textbf{II}} & \\textbf{月供应量/t} & \\textbf{单价(千元/t)} \\\\\n  \\cmidrule(lr){1-2} \\cmidrule(lr){5-6}\n  \\textbf{原料} & & & & & \\\\\n  \\midrule\n  A & & 1 & 2 & 6 & 9.9 \\\\\n  B & & 2 & 1 & 8 & 6.6 \\\\\n  \\midrule\n  \\multicolumn{2}{c}{\\textbf{批发价}} & 30 & 20 & & \\\\\n  \\bottomrule\n  \\end{tabular}\n  \\end{table}\n\n  据对市场估计，产品Ⅱ月销量不超过2千盒，产品Ⅱ销量不会超过产品11千盒以上。  要求计算最大批发收入  \n\n",
+        "question": "\n  甜甜食品公司下属的一个食品厂生产两种点心I和Ⅱ，采用原料A和B。已知生产每盒产品I和Ⅱ时消耗的原料 $\\mathbf{kg}$ 数，原料月供应量、原料单价及两种点心的批发价（千元/千盒)如表C-5所示。  \n\n  表C-5  \n\n  \\begin{table}[h]\n  \\centering\n  \\caption{Table C-5}\n  \\begin{tabular}{cccccc}\n  \\toprule\n  \\multicolumn{2}{c}{\\textbf{产品}} & \\multirow{2}{*}{\\textbf{I}} & \\multirow{2}{*}{\\textbf{II}} & \\textbf{月供应量/t} & \\textbf{单价(千元/t)} \\\\\n  \\cmidrule(lr){1-2} \\cmidrule(lr){5-6}\n  \\textbf{原料} & & & & & \\\\\n  \\midrule\n  A & & 1 & 2 & 6 & 9.9 \\\\\n  B & & 2 & 1 & 8 & 6.6 \\\\\n  \\midrule\n  \\multicolumn{2}{c}{\\textbf{批发价}} & 30 & 20 & & \\\\\n  \\bottomrule\n  \\end{tabular}\n  \\end{table}\n\n  据对市场估计，产品Ⅱ月销量不超过2千盒，产品Ⅱ销量不会超过产品I 1千盒以上。  要求计算最大批发收入  \n\n",
         "answer": 126.6666667
     },
     "81": {
