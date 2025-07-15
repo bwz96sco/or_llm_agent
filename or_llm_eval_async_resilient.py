@@ -18,6 +18,41 @@ from utils import (
     eval_model_result
 )
 
+# Prompt constants
+MATH_MODEL_SYSTEM_PROMPT = (
+    "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，以数学（线性规划）模型对原问题进行有效建模。"
+    "尽量关注获得一个正确的数学模型表达式，无需太关注解释。"
+    "该模型后续用作指导生成gurobi代码，这一步主要用作生成有效的线性规模表达式。"
+)
+
+CODE_GENERATION_SYSTEM_PROMPT = (
+    "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，并写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
+    "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
+    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+)
+
+REQUEST_GUROBI_CODE_PROMPT = (
+    "请基于以上的数学模型，写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
+    "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
+    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+)
+
+ERROR_FIX_PROMPT_TEMPLATE = (
+    "代码执行出现错误，错误信息如下:\n{error_msg}\n请修复代码并重新提供完整的可执行代码。"
+)
+
+INFEASIBLE_SOLUTION_PROMPT = (
+    "现有模型运行结果为*无可行解*，请认真仔细地检查数学模型和gurobi代码，是否存在错误，以致于造成无可行解"
+    "检查完成后，最终请重新输出gurobi python代码"
+    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+)
+
+MAX_ATTEMPT_ERROR_PROMPT = (
+    "现在模型代码多次调试仍然报错，请认真仔细地检查数学模型是否存在错误"
+    "检查后最终请重新构建gurobi python代码"
+    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+)
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -181,31 +216,59 @@ async def async_extract_and_execute_python_code(text_content):
 
     return False, "No valid code blocks executed"
 
-async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_attempts=3):
+async def async_generate_math_model(user_question, model_name="o3-mini"):
     """
-    Async version of gpt_code_agent_simple that handles LLM failures gracefully
+    Generate mathematical model from user question
     """
     messages = [
-        {"role": "system", "content": (
-            "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，并写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
-            "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-            "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-        )},
+        {"role": "system", "content": MATH_MODEL_SYSTEM_PROMPT},
         {"role": "user", "content": user_question}
     ]
 
-    success, gurobi_code = await async_query_llm(messages, model_name)
+    success, math_model = await async_query_llm(messages, model_name)
     if not success:
-        print(f"LLM查询失败: {gurobi_code}")
-        return False, f"CODE_GEN_ERROR: {gurobi_code}"
+        print(f"数学模型生成失败: {math_model}")
+        return False, f"MATH_MODEL_FAILED: {math_model}"
     
-    print("【Python Gurobi 代码】:\n", gurobi_code)
-    text = f"{gurobi_code}"
-    is_solve_success, result = await async_extract_and_execute_python_code(text)
-    
-    print(f'Stage result: {is_solve_success}, {result}')
-    
-    return is_solve_success, result
+    print("【数学模型】:\n", math_model)
+    return True, math_model
+
+async def async_generate_gurobi_code(user_question, model_name="o3-mini", math_model=None, enable_debug=True, max_attempts=3):
+    """
+    Generate Gurobi code either from user question directly or with math model
+    """
+    if math_model:
+        # Build conversation with math model context
+        messages = [
+            {"role": "system", "content": MATH_MODEL_SYSTEM_PROMPT},
+            {"role": "user", "content": user_question},
+            {"role": "assistant", "content": math_model},
+            {"role": "user", "content": REQUEST_GUROBI_CODE_PROMPT}
+        ]
+    else:
+        # Direct code generation from user question
+        messages = [
+            {"role": "system", "content": CODE_GENERATION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_question}
+        ]
+
+    if enable_debug:
+        # Use the debug-enabled version with multiple attempts
+        is_solve_success, result, _ = await async_generate_or_code_solver(messages, model_name, max_attempts)
+        return is_solve_success, result
+    else:
+        # Simple single-attempt version
+        success, gurobi_code = await async_query_llm(messages, model_name)
+        if not success:
+            print(f"LLM查询失败: {gurobi_code}")
+            return False, f"CODE_GEN_ERROR: {gurobi_code}"
+        
+        print("【Python Gurobi 代码】:\n", gurobi_code)
+        text = f"{gurobi_code}"
+        is_solve_success, result = await async_extract_and_execute_python_code(text)
+        
+        print(f'Stage result: {is_solve_success}, {result}')
+        return is_solve_success, result
 
 async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
     """
@@ -231,7 +294,7 @@ async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
         print(f"\n第 {attempt + 1} 次尝试失败，请求 LLM 修复代码...\n")
 
         messages.append({"role": "assistant", "content": gurobi_code})
-        messages.append({"role": "user", "content": f"代码执行出现错误，错误信息如下:\n{error_msg}\n请修复代码并重新提供完整的可执行代码。"})
+        messages.append({"role": "user", "content": ERROR_FIX_PROMPT_TEMPLATE.format(error_msg=error_msg)})
 
         success, gurobi_code = await async_query_llm(messages, model_name)
         if not success:
@@ -248,61 +311,57 @@ async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
     print(f"达到最大尝试次数 ({max_attempts})，未能成功执行代码。")
     return False, error_msg, messages_bak
 
-async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
+async def async_or_llm_agent(user_question, model_name="o3-mini", use_math_model=False, enable_debug=False, max_attempts=3):
     """
-    Async version of or_llm_agent function that handles LLM failures gracefully.
+    Main agent function that orchestrates math model generation and code generation
     """
-    # Initialize conversation history
-    messages = [
-        {"role": "system", "content": (
-            "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，以数学（线性规划）模型对原问题进行有效建模。"
-            "尽量关注获得一个正确的数学模型表达式，无需太关注解释。"
-            "该模型后续用作指导生成gurobi代码，这一步主要用作生成有效的线性规模表达式。"
-        )},
-        {"role": "user", "content": user_question}
-    ]
-
-    # 1. Generate mathematical model
-    success, math_model = await async_query_llm(messages, model_name)
-    if not success:
-        print(f"数学模型生成失败: {math_model}")
-        return False, f"MATH_MODEL_FAILED: {math_model}"
+    math_model = None
     
-    print("【数学模型】:\n", math_model)
+    # Step 1: Generate math model if requested
+    if use_math_model:
+        success, math_model = await async_generate_math_model(user_question, model_name)
+        if not success:
+            return False, math_model
     
-    validate_math_model = math_model
-    messages.append({"role": "assistant", "content": validate_math_model})
+    # Step 2: Generate and execute Gurobi code
+    is_solve_success, result = await async_generate_gurobi_code(
+        user_question, model_name, math_model, enable_debug, max_attempts
+    )
     
-    messages.append({"role": "user", "content": (
-        "请基于以上的数学模型，写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
-        "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-        "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-    )})
-
-    # copy msg; solve; add the last gurobi code 
-    is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts)
-    print(f'Stage result: {is_solve_success}, {result}')
-    
-    if is_solve_success:
-        if not is_number_string(result):
-            print('!![No available solution warning]!!')
-            messages.append({"role": "user", "content": (
-                "现有模型运行结果为*无可行解*，请认真仔细地检查数学模型和gurobi代码，是否存在错误，以致于造成无可行解"
-                "检查完成后，最终请重新输出gurobi python代码"
-                "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-            )})
-            is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=1)
-    else:
-        if not result.startswith("CODE_GEN_ERROR"):
-            print('!![Max attempt debug error warning]!!')
-            messages.append({"role": "user", "content": (
-                    "现在模型代码多次调试仍然报错，请认真仔细地检查数学模型是否存在错误"
-                    "检查后最终请重新构建gurobi python代码"
-                    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-                )})
-            is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=2)
+    # Step 3: Handle unsuccessful results with additional debugging (only if debug enabled and math model was used)
+    if use_math_model and enable_debug:
+        if is_solve_success:
+            if not is_number_string(result):
+                print('!![No available solution warning]!!')
+                # Try to fix infeasible solution
+                messages = [
+                    {"role": "system", "content": MATH_MODEL_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_question},
+                    {"role": "assistant", "content": math_model},
+                                         {"role": "user", "content": REQUEST_GUROBI_CODE_PROMPT},
+                     {"role": "user", "content": INFEASIBLE_SOLUTION_PROMPT}
+                ]
+                is_solve_success, result, _ = await async_generate_or_code_solver(messages, model_name, max_attempts=1)
+        else:
+            if not result.startswith("CODE_GEN_ERROR"):
+                print('!![Max attempt debug error warning]!!')
+                messages = [
+                    {"role": "system", "content": MATH_MODEL_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_question},
+                    {"role": "assistant", "content": math_model},
+                                         {"role": "user", "content": REQUEST_GUROBI_CODE_PROMPT},
+                     {"role": "user", "content": MAX_ATTEMPT_ERROR_PROMPT}
+                ]
+                is_solve_success, result, _ = await async_generate_or_code_solver(messages, model_name, max_attempts=2)
     
     return is_solve_success, result
+
+# Keep the legacy function for backward compatibility
+async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_attempts=3):
+    """
+    Legacy simple agent function - now just calls the new agent without math model
+    """
+    return await async_or_llm_agent(user_question, model_name, use_math_model=False, enable_debug=False, max_attempts=max_attempts)
 
 async def process_single_case(i, d, args):
     """
@@ -312,10 +371,12 @@ async def process_single_case(i, d, args):
     failure_reason = None
     
     try:
-        if args.agent:
-            is_solve_success, llm_result = await async_or_llm_agent(user_question, args.model)
-        else:
-            is_solve_success, llm_result = await async_gpt_code_agent_simple(user_question, args.model)
+        is_solve_success, llm_result = await async_or_llm_agent(
+            user_question, 
+            args.model, 
+            use_math_model=args.math,
+            enable_debug=args.debug
+        )
             
         if is_solve_success:
             print(f"成功执行代码，最优解值: {llm_result}")
@@ -354,8 +415,10 @@ def parse_args():
         argparse.Namespace: The parsed arguments
     """
     parser = argparse.ArgumentParser(description='Run optimization problem solving with LLMs (resilient async version)')
-    parser.add_argument('--agent', action='store_true', 
-                        help='Use the agent. If not specified, directly use the model to solve the problem')
+    parser.add_argument('--math', action='store_true', 
+                        help='Generate mathematical model first, then use it to guide code generation')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debugging mode with multiple attempts to fix code errors')
     parser.add_argument('--model', type=str, default='o3-mini',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
     parser.add_argument('--data_path', type=str, default='data/datasets/dataset_combined_result.json',
