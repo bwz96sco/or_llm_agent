@@ -44,7 +44,8 @@ anthropic_client = anthropic.AsyncAnthropic(
 
 async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_attempts=3):
     """
-    Async version of query_llm that supports both OpenAI and Claude models with retry functionality
+    Async version of query_llm that supports both OpenAI and Claude models with retry functionality.
+    Returns (success, result) tuple instead of raising exceptions after max attempts.
     """
     import time
     
@@ -78,7 +79,7 @@ async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_a
                         "content": conversation
                     }]
                 )
-                return response.content[0].text
+                return True, response.content[0].text
             else:
                 # Use OpenAI API
                 response = await openai_client.chat.completions.create(
@@ -86,7 +87,7 @@ async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_a
                     messages=messages,
                     temperature=temperature
                 )
-                return response.choices[0].message.content
+                return True, response.choices[0].message.content
                 
         except (openai.APIConnectionError, anthropic.APIConnectionError) as e:
             print(f"[Connection Error] Attempt {attempt + 1}/{max_attempts} failed for model {model_name}")
@@ -99,14 +100,16 @@ async def async_query_llm(messages, model_name="o3-mini", temperature=0.2, max_a
                 print(f"[Connection Error] Retrying in {wait_time} seconds...")
                 await asyncio.sleep(wait_time)
             else:
-                print(f"[Connection Error] Max attempts ({max_attempts}) reached. Giving up.")
-                raise e
+                print(f"[Connection Error] Max attempts ({max_attempts}) reached. Continuing with failure.")
+                return False, f"Connection error after {max_attempts} attempts: {str(e)}"
                 
         except Exception as e:
             # For other types of errors, don't retry
             print(f"[API Error] Non-connection error occurred with model {model_name}: {str(e)}")
             print(f"[API Error] Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            raise e
+            return False, f"API error: {str(e)}"
+    
+    return False, "Unknown error occurred"
 
 async def async_extract_and_execute_python_code(text_content):
     """
@@ -180,7 +183,7 @@ async def async_extract_and_execute_python_code(text_content):
 
 async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_attempts=3):
     """
-    Async version of gpt_code_agent_simple
+    Async version of gpt_code_agent_simple that handles LLM failures gracefully
     """
     messages = [
         {"role": "system", "content": (
@@ -191,7 +194,11 @@ async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_a
         {"role": "user", "content": user_question}
     ]
 
-    gurobi_code = await async_query_llm(messages, model_name)
+    success, gurobi_code = await async_query_llm(messages, model_name)
+    if not success:
+        print(f"LLM查询失败: {gurobi_code}")
+        return False, f"CODE_GEN_ERROR: {gurobi_code}"
+    
     print("【Python Gurobi 代码】:\n", gurobi_code)
     text = f"{gurobi_code}"
     is_solve_success, result = await async_extract_and_execute_python_code(text)
@@ -201,16 +208,23 @@ async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_a
     return is_solve_success, result
 
 async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
+    """
+    Async version that handles LLM failures gracefully
+    """
     messages = copy.deepcopy(messages_bak)
 
-    gurobi_code = await async_query_llm(messages, model_name)
+    success, gurobi_code = await async_query_llm(messages, model_name)
+    if not success:
+        print(f"LLM查询失败: {gurobi_code}")
+        return False, f"CODE_GEN_ERROR: {gurobi_code}", messages_bak
+    
     print("【Python Gurobi 代码】:\n", gurobi_code)
 
     text = f"{gurobi_code}"
     attempt = 0
     while attempt < max_attempts:
-        success, error_msg = await async_extract_and_execute_python_code(text)
-        if success:
+        success_exec, error_msg = await async_extract_and_execute_python_code(text)
+        if success_exec:
             messages_bak.append({"role": "assistant", "content": gurobi_code})
             return True, error_msg, messages_bak
 
@@ -219,7 +233,12 @@ async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
         messages.append({"role": "assistant", "content": gurobi_code})
         messages.append({"role": "user", "content": f"代码执行出现错误，错误信息如下:\n{error_msg}\n请修复代码并重新提供完整的可执行代码。"})
 
-        gurobi_code = await async_query_llm(messages, model_name)
+        success, gurobi_code = await async_query_llm(messages, model_name)
+        if not success:
+            print(f"LLM生成代码失败: {gurobi_code}")
+            messages_bak.append({"role": "assistant", "content": f"CODE_GEN_ERROR: {gurobi_code}"})
+            return False, f"CODE_GEN_ERROR: {gurobi_code}", messages_bak
+        
         text = f"{gurobi_code}"
 
         print("\n获取到修复后的代码，准备重新执行...\n")
@@ -227,11 +246,11 @@ async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
 
     messages_bak.append({"role": "assistant", "content": gurobi_code})
     print(f"达到最大尝试次数 ({max_attempts})，未能成功执行代码。")
-    return False, None, messages_bak
+    return False, error_msg, messages_bak
 
 async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
     """
-    Async version of or_llm_agent function.
+    Async version of or_llm_agent function that handles LLM failures gracefully.
     """
     # Initialize conversation history
     messages = [
@@ -244,7 +263,11 @@ async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3
     ]
 
     # 1. Generate mathematical model
-    math_model = await async_query_llm(messages, model_name)
+    success, math_model = await async_query_llm(messages, model_name)
+    if not success:
+        print(f"数学模型生成失败: {math_model}")
+        return False, f"MATH_MODEL_FAILED: {math_model}"
+    
     print("【数学模型】:\n", math_model)
     
     validate_math_model = math_model
@@ -270,46 +293,58 @@ async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3
             )})
             is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=1)
     else:
-        print('!![Max attempt debug error warning]!!')
-        messages.append({"role": "user", "content": (
-                "现在模型代码多次调试仍然报错，请认真仔细地检查数学模型是否存在错误"
-                "检查后最终请重新构建gurobi python代码"
-                "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
-            )})
-        is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=2)
+        if not result.startswith("CODE_GEN_ERROR"):
+            print('!![Max attempt debug error warning]!!')
+            messages.append({"role": "user", "content": (
+                    "现在模型代码多次调试仍然报错，请认真仔细地检查数学模型是否存在错误"
+                    "检查后最终请重新构建gurobi python代码"
+                    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+                )})
+            is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=2)
     
     return is_solve_success, result
 
 async def process_single_case(i, d, args):
     """
-    Process a single test case
+    Process a single test case with failure tracking
     """
-    # print(f"=============== num {i} ==================")
     user_question, answer = d['question'], d['answer']
-    # print(user_question)
-    # print('-------------')
+    failure_reason = None
     
-    if args.agent:
-        is_solve_success, llm_result = await async_or_llm_agent(user_question, args.model)
-    else:
-        is_solve_success, llm_result = await async_gpt_code_agent_simple(user_question, args.model)
+    try:
+        if args.agent:
+            is_solve_success, llm_result = await async_or_llm_agent(user_question, args.model)
+        else:
+            is_solve_success, llm_result = await async_gpt_code_agent_simple(user_question, args.model)
+            
+        if is_solve_success:
+            print(f"成功执行代码，最优解值: {llm_result}")
+        else:
+            print("执行代码失败。")
+            if isinstance(llm_result, str) and llm_result.startswith("CODE_GEN_ERROR"):
+                failure_reason = "CODE_GEN_ERROR"
+            elif isinstance(llm_result, str) and llm_result.startswith("MATH_MODEL_FAILED"):
+                failure_reason = "MATH_MODEL_FAILED"
+            else:
+                failure_reason = "CODE_EXECUTION_FAILED"
         
-    if is_solve_success:
-        print(f"成功执行代码，最优解值: {llm_result}")
-    else:
-        print("执行代码失败。")
-    print('------------------')
+        print('------------------')
+        
+        pass_flag, correct_flag = eval_model_result(is_solve_success, llm_result, answer)
+        
+        print(f"=============== num {i} ==================")
+        print(user_question)
+        print('-------------')
+        print(f'solve: {is_solve_success}, llm: {llm_result}, ground truth: {answer}')
+        print(f'[Final] run pass: {pass_flag}, solve correct: {correct_flag}')
+        print(' ')
+        
+        return llm_result, pass_flag, correct_flag, i, failure_reason
     
-    pass_flag, correct_flag = eval_model_result(is_solve_success, llm_result, answer)
-    
-    print(f"=============== num {i} ==================")
-    print(user_question)
-    print('-------------')
-    print(f'solve: {is_solve_success}, llm: {llm_result}, ground truth: {answer}')
-    print(f'[Final] run pass: {pass_flag}, solve correct: {correct_flag}')
-    print(' ')
-    
-    return llm_result, pass_flag, correct_flag, i
+    except Exception as e:
+        print(f"Task {i} failed with unexpected error: {str(e)}")
+        failure_reason = f"UNEXPECTED_ERROR: {str(e)}"
+        return None, False, False, i, failure_reason
 
 def parse_args():
     """
@@ -318,7 +353,7 @@ def parse_args():
     Returns:
         argparse.Namespace: The parsed arguments
     """
-    parser = argparse.ArgumentParser(description='Run optimization problem solving with LLMs (async version)')
+    parser = argparse.ArgumentParser(description='Run optimization problem solving with LLMs (resilient async version)')
     parser.add_argument('--agent', action='store_true', 
                         help='Use the agent. If not specified, directly use the model to solve the problem')
     parser.add_argument('--model', type=str, default='o3-mini',
@@ -338,7 +373,7 @@ async def main():
     dataset_items = list(dataset.items())
     
     # Process dataset in batches of 50
-    batch_size = 20
+    batch_size = 5
     all_results = []
     total_batches = (len(dataset_items) + batch_size - 1) // batch_size  # Ceiling division
     
@@ -358,29 +393,80 @@ async def main():
             tasks.append(task)
         
         # Run current batch concurrently and gather results
-        batch_results = await asyncio.gather(*tasks)
-        all_results.extend(batch_results)
+        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle exceptions in batch results
+        processed_batch_results = []
+        for idx, result in enumerate(batch_results):
+            if isinstance(result, Exception):
+                task_id = batch_items[idx][0]  # Get the task ID
+                print(f"Exception in task {task_id}: {str(result)}")
+                processed_batch_results.append((None, False, False, task_id, f"EXCEPTION: {str(result)}"))
+            else:
+                processed_batch_results.append(result)
+        
+        all_results.extend(processed_batch_results)
         
         # Print batch summary
-        batch_pass_count = sum(1 for _, pass_flag, _, _ in batch_results if pass_flag)
-        batch_correct_count = sum(1 for _, _, correct_flag, _ in batch_results if correct_flag)
+        batch_pass_count = sum(1 for _, pass_flag, _, _, _ in processed_batch_results if pass_flag)
+        batch_correct_count = sum(1 for _, _, correct_flag, _, _ in processed_batch_results if correct_flag)
         print(f"\nBatch {batch_num + 1} Summary:")
-        print(f"  Processed: {len(batch_results)} cases")
+        print(f"  Processed: {len(processed_batch_results)} cases")
         print(f"  Run pass: {batch_pass_count}")
         print(f"  Solve correct: {batch_correct_count}")
         print(f"  Completed: {end_idx}/{len(dataset_items)} total cases")
     
     # Process final results
-    pass_count = sum(1 for _, pass_flag, _, _ in all_results if pass_flag)
-    correct_count = sum(1 for _, _, correct_flag, _ in all_results if correct_flag)
-    error_datas = [i for _, pass_flag, correct_flag, i in all_results if not pass_flag or not correct_flag]
+    pass_count = sum(1 for _, pass_flag, _, _, _ in all_results if pass_flag)
+    correct_count = sum(1 for _, _, correct_flag, _, _ in all_results if correct_flag)
+    error_datas = [i for _, pass_flag, correct_flag, i, _ in all_results if not pass_flag or not correct_flag]
+    
+    # Track failure types
+    failure_summary = {}
+    failed_tasks = []
+    for llm_result, pass_flag, correct_flag, task_id, failure_reason in all_results:
+        if not pass_flag or not correct_flag:
+            failed_tasks.append({
+                'task_id': task_id,
+                'pass_flag': pass_flag,
+                'correct_flag': correct_flag,
+                'failure_reason': failure_reason or 'UNKNOWN',
+                'llm_result': llm_result
+            })
+            
+            failure_type = failure_reason or 'UNKNOWN'
+            if failure_type not in failure_summary:
+                failure_summary[failure_type] = []
+            failure_summary[failure_type].append(task_id)
     
     print(f"\n{'='*50}")
     print("FINAL RESULTS")
     print(f"{'='*50}")
     print(f'[Total {len(dataset)}] run pass: {pass_count}, solve correct: {correct_count}')
     print(f'[Total fails {len(error_datas)}] error datas: {error_datas}')
+    
+    print(f"\n{'='*50}")
+    print("FAILURE ANALYSIS")
+    print(f"{'='*50}")
+    
+    if failure_summary:
+        print(f"Total failed tasks: {len(failed_tasks)}")
+        print("\nFailure breakdown by type:")
+        for failure_type, task_ids in failure_summary.items():
+            print(f"  {failure_type}: {len(task_ids)} tasks")
+            print(f"    Task IDs: {task_ids}")
+        
+        print(f"\nDetailed failure list:")
+        for i, failure in enumerate(failed_tasks[:20]):  # Show first 20 failures
+            print(f"  {i+1}. Task {failure['task_id']}: {failure['failure_reason']}")
+            if failure['llm_result'] and len(str(failure['llm_result'])) < 100:
+                print(f"     Result: {failure['llm_result']}")
+        
+        if len(failed_tasks) > 20:
+            print(f"     ... and {len(failed_tasks) - 20} more failures")
+    else:
+        print("No failures detected!")
 
 if __name__ == "__main__":
     # Running as script
-    asyncio.run(main())
+    asyncio.run(main()) 

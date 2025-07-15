@@ -115,16 +115,16 @@ async def async_extract_and_execute_python_code(text_content):
     python_code_blocks = re.findall(r'```python\s*([\s\S]*?)```', text_content)
 
     if not python_code_blocks:
-        print("未找到Python代码块。")
+        print("No Python code blocks found.")
         return False, "No Python code blocks found"
 
     for code_block in python_code_blocks:
         code_block = code_block.strip()
         if not code_block:
-            print("找到一个空的Python代码块，已跳过。")
+            print("Found an empty Python code block, skipped.")
             continue
 
-        print("找到Python代码块，开始执行...")
+        print("Found Python code block, starting execution...")
         try:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp_file:
                 tmp_file.write(code_block)
@@ -143,7 +143,7 @@ async def async_extract_and_execute_python_code(text_content):
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60.0)
                 
             except asyncio.TimeoutError:
-                print("Python 代码执行超时 (60秒)，可能存在无限循环或长时间运行的代码")
+                print("Python code execution timeout (60 seconds), possible infinite loop or long-running code")
                 # Kill the process if it's still running
                 try:
                     proc.kill()
@@ -153,23 +153,23 @@ async def async_extract_and_execute_python_code(text_content):
                 return False, "Code execution timeout (60 seconds) - possible infinite loop"
             
             if proc.returncode == 0:
-                print("Python 代码执行成功，输出:\n")
+                print("Python code execution successful, output:\n")
                 stdout_str = stdout.decode()
                 print(stdout_str)
                 
                 best_obj = extract_best_objective(stdout_str)
                 if best_obj is not None:
-                    print(f"\n最优解值 (Best objective): {best_obj}")
+                    print(f"\nBest objective value: {best_obj}")
                 else:
-                    print("\n未找到最优解值")
+                    print("\nBest objective value not found")
                 return True, str(best_obj)
             else:
-                print(f"Python 代码执行出错，错误信息:\n")
+                print(f"Python code execution error, error message:\n")
                 print(stderr.decode())
                 return False, stderr.decode()
 
         except Exception as e:
-            print(f"执行Python代码块时发生错误: {e}")
+            print(f"Error occurred while executing Python code block: {e}")
             return False, str(e)
         finally:
             if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
@@ -184,15 +184,15 @@ async def async_gpt_code_agent_simple(user_question, model_name="o3-mini", max_a
     """
     messages = [
         {"role": "system", "content": (
-            "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，并写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
-            "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-            "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+            "You are an operations research optimization expert. Please build a mathematical model based on the operations research optimization problem provided by the user, and write complete, reliable Python code using Gurobi to solve the operations research optimization problem."
+            "The code should include necessary model construction, variable definition, constraint addition, objective function setting, solving, and result output."
+            "Output in ```python\n{code}\n``` format, no need for code explanation."
         )},
         {"role": "user", "content": user_question}
     ]
 
     gurobi_code = await async_query_llm(messages, model_name)
-    print("【Python Gurobi 代码】:\n", gurobi_code)
+    print("【Python Gurobi Code】:\n", gurobi_code)
     text = f"{gurobi_code}"
     is_solve_success, result = await async_extract_and_execute_python_code(text)
     
@@ -204,7 +204,7 @@ async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
     messages = copy.deepcopy(messages_bak)
 
     gurobi_code = await async_query_llm(messages, model_name)
-    print("【Python Gurobi 代码】:\n", gurobi_code)
+    print("【Python Gurobi Code】:\n", gurobi_code)
 
     text = f"{gurobi_code}"
     attempt = 0
@@ -214,19 +214,19 @@ async def async_generate_or_code_solver(messages_bak, model_name, max_attempts):
             messages_bak.append({"role": "assistant", "content": gurobi_code})
             return True, error_msg, messages_bak
 
-        print(f"\n第 {attempt + 1} 次尝试失败，请求 LLM 修复代码...\n")
+        print(f"\nAttempt {attempt + 1} failed, requesting LLM to fix the code...\n")
 
         messages.append({"role": "assistant", "content": gurobi_code})
-        messages.append({"role": "user", "content": f"代码执行出现错误，错误信息如下:\n{error_msg}\n请修复代码并重新提供完整的可执行代码。"})
+        messages.append({"role": "user", "content": f"Code execution error occurred, error message as follows:\n{error_msg}\nPlease fix the code and provide the complete executable code again."})
 
         gurobi_code = await async_query_llm(messages, model_name)
         text = f"{gurobi_code}"
 
-        print("\n获取到修复后的代码，准备重新执行...\n")
+        print("\nReceived fixed code, preparing to re-execute...\n")
         attempt += 1
 
     messages_bak.append({"role": "assistant", "content": gurobi_code})
-    print(f"达到最大尝试次数 ({max_attempts})，未能成功执行代码。")
+    print(f"Reached maximum attempts ({max_attempts}), failed to execute code successfully.")
     return False, None, messages_bak
 
 async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
@@ -236,24 +236,24 @@ async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3
     # Initialize conversation history
     messages = [
         {"role": "system", "content": (
-            "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，以数学（线性规划）模型对原问题进行有效建模。"
-            "尽量关注获得一个正确的数学模型表达式，无需太关注解释。"
-            "该模型后续用作指导生成gurobi代码，这一步主要用作生成有效的线性规模表达式。"
+            "You are an operations research optimization expert. Please build a mathematical model based on the operations research optimization problem provided by the user, and effectively model the original problem using a mathematical (linear programming) model."
+            "Focus on obtaining a correct mathematical model expression, without too much emphasis on explanation."
+            "This model will be used subsequently to guide the generation of gurobi code. This step is mainly used to generate effective linear programming expressions."
         )},
         {"role": "user", "content": user_question}
     ]
 
     # 1. Generate mathematical model
     math_model = await async_query_llm(messages, model_name)
-    print("【数学模型】:\n", math_model)
+    print("【Mathematical Model】:\n", math_model)
     
     validate_math_model = math_model
     messages.append({"role": "assistant", "content": validate_math_model})
     
     messages.append({"role": "user", "content": (
-        "请基于以上的数学模型，写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
-        "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-        "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+        "Please write complete, reliable Python code based on the above mathematical model, using Gurobi to solve this operations research optimization problem."
+        "The code should include necessary model construction, variable definition, constraint addition, objective function setting, solving, and result output."
+        "Output in ```python\n{code}\n``` format, no need for code explanation."
     )})
 
     # copy msg; solve; add the last gurobi code 
@@ -264,17 +264,17 @@ async def async_or_llm_agent(user_question, model_name="o3-mini", max_attempts=3
         if not is_number_string(result):
             print('!![No available solution warning]!!')
             messages.append({"role": "user", "content": (
-                "现有模型运行结果为*无可行解*，请认真仔细地检查数学模型和gurobi代码，是否存在错误，以致于造成无可行解"
-                "检查完成后，最终请重新输出gurobi python代码"
-                "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+                "The current model run result is *no feasible solution*, please carefully check the mathematical model and gurobi code for errors that may cause no feasible solution"
+                "After checking, please output the gurobi python code again"
+                "Output in ```python\n{code}\n``` format, no need for code explanation."
             )})
             is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=1)
     else:
         print('!![Max attempt debug error warning]!!')
         messages.append({"role": "user", "content": (
-                "现在模型代码多次调试仍然报错，请认真仔细地检查数学模型是否存在错误"
-                "检查后最终请重新构建gurobi python代码"
-                "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+                "The model code still has errors after multiple debugging attempts, please carefully check if there are errors in the mathematical model"
+                "After checking, please rebuild the gurobi python code"
+                "Output in ```python\n{code}\n``` format, no need for code explanation."
             )})
         is_solve_success, result, messages = await async_generate_or_code_solver(messages, model_name, max_attempts=2)
     
@@ -284,10 +284,10 @@ async def process_single_case(i, d, args):
     """
     Process a single test case
     """
-    # print(f"=============== num {i} ==================")
+    print(f"=============== num {i} ==================")
     user_question, answer = d['question'], d['answer']
-    # print(user_question)
-    # print('-------------')
+    print(user_question)
+    print('-------------')
     
     if args.agent:
         is_solve_success, llm_result = await async_or_llm_agent(user_question, args.model)
@@ -295,16 +295,13 @@ async def process_single_case(i, d, args):
         is_solve_success, llm_result = await async_gpt_code_agent_simple(user_question, args.model)
         
     if is_solve_success:
-        print(f"成功执行代码，最优解值: {llm_result}")
+        print(f"Successfully executed code, optimal solution value: {llm_result}")
     else:
-        print("执行代码失败。")
+        print("Failed to execute code.")
     print('------------------')
     
     pass_flag, correct_flag = eval_model_result(is_solve_success, llm_result, answer)
     
-    print(f"=============== num {i} ==================")
-    print(user_question)
-    print('-------------')
     print(f'solve: {is_solve_success}, llm: {llm_result}, ground truth: {answer}')
     print(f'[Final] run pass: {pass_flag}, solve correct: {correct_flag}')
     print(' ')
@@ -383,4 +380,4 @@ async def main():
 
 if __name__ == "__main__":
     # Running as script
-    asyncio.run(main())
+    asyncio.run(main()) 
