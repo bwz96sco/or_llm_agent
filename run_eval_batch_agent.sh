@@ -43,9 +43,8 @@ mkdir -p logs
 #     "agent,deepseek/deepseek-r1-0528:free-R1,data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
 # )
 configurations=(
-    #deepseek/deepseek-r1-0528:free-R1
-    "agent,deepseek/deepseek-r1-0528:free-R1,data/datasets/ORLM/MAMO.ComplexLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
-    "agent,deepseek/deepseek-r1-0528:free-R1,data/datasets/ORLM/MAMO.EasyLP.q2mc_en.ORLM-LLaMA-3-8B/executed_converted.json"
+    "agent,deepseek-ai/DeepSeek-R1-0528,data/datasets/ComplexLP_converted.json"
+    "agent,deepseek-ai/DeepSeek-R1-0528,data/datasets/EasyLP_converted.json"
 )
 
 # Counter for evaluation numbering
@@ -61,7 +60,7 @@ for config in "${configurations[@]}"; do
     echo "Configuration: agent_mode='$agent_mode', model='$model', data_path='$data_path'"
     
     # Build the command
-    cmd="python or_llm_eval_async.py"
+    cmd="python or_llm_eval_async_resilient.py"
     
     # Add --agent flag if agent_mode is not empty
     if [ -n "$agent_mode" ]; then
@@ -72,7 +71,7 @@ for config in "${configurations[@]}"; do
     cmd="$cmd --model $model --data_path $data_path"
     
     # Extract dataset name from data_path for log naming
-    dataset_name=$(basename $(dirname "$data_path"))
+    dataset_name=$(basename "$data_path" .json)
     
     # Sanitize model name for filesystem (replace / and : with -)
     sanitized_model=$(echo "$model" | sed 's/[\/:]/-/g')

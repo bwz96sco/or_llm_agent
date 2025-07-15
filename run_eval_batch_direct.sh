@@ -74,7 +74,7 @@ for config in "${configurations[@]}"; do
     cmd="$cmd --model $model --data_path $data_path"
     
     # Extract dataset name from data_path for log naming
-    dataset_name=$(basename $(dirname "$data_path"))
+    dataset_name=$(basename "$data_path" .json)
     
     # Generate log filename with agent mode, model, and dataset name
     if [ -n "$agent_mode" ]; then
