@@ -58,6 +58,10 @@ ax.tick_params(axis='y', labelsize=16)
 ax.set_ylim(0, 100)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 
+# 移除顶部和右侧边框线
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
 # 图例放在顶部，两行排列
 ax.legend(title="", loc="upper center", bbox_to_anchor=(0.5, 1.18),
           ncol=2, fontsize=16, handlelength=2.5, columnspacing=1.5, frameon=False)

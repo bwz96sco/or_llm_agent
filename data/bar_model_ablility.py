@@ -87,6 +87,11 @@ ax.set_xticklabels(datasets, fontsize=18)
 ax.set_ylim(0, 100)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 
+# 移除顶部和右侧边框线
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+
 # 图例（两行，顶部居中，无边框）
 ax.legend(
     handles=legend_handles,

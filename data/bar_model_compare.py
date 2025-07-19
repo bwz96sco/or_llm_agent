@@ -63,6 +63,12 @@ ax.set_ylim(-25, 40)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 ax.legend(title="", loc="upper center", bbox_to_anchor=(0.5, 1.18),
           ncol=2, fontsize=16, handlelength=2.5, columnspacing=1.5, frameon=False)
+
+# 移除顶部和右侧边框线
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+
 plt.tight_layout()
 plt.savefig("data/images/bar_model_compare.png", dpi=300, bbox_inches='tight')
 plt.show()
