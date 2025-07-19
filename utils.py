@@ -58,6 +58,10 @@ def extract_best_objective(output_text):
         # If not found, try to find Optimal objective
         match = re.search(r'Optimal objective\s+([\d.e+-]+)', output_text)
     
+    if not match:
+        # If not found, try to find Optimal cost
+        match = re.search(r'Optimal cost\s+([\d.e+-]+)', output_text)
+    
     if match:
         try:
             return float(match.group(1))

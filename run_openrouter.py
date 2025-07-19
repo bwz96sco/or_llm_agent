@@ -25,10 +25,16 @@ MATH_MODEL_SYSTEM_PROMPT = (
     "该模型后续用作指导生成gurobi代码，这一步主要用作生成有效的线性规模表达式。"
 )
 
+# CODE_GENERATION_SYSTEM_PROMPT = (
+#     "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，并写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
+#     "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
+#     "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+# )
+
 CODE_GENERATION_SYSTEM_PROMPT = (
     "你是一个运筹优化专家。请根据用户提供的运筹优化问题构建数学模型，并写出完整、可靠的 Python 代码，使用 Gurobi 求解该运筹优化问题。"
     "代码中请包含必要的模型构建、变量定义、约束添加、目标函数设定以及求解和结果输出。"
-    "以 ```python\n{code}\n``` 形式输出，无需输出代码解释。"
+    "请输出数学模型和Python代码，代码以 ```python\n{code}\n``` 形式输出"
 )
 
 REQUEST_GUROBI_CODE_WITH_MATH_PROMPT = (
@@ -58,8 +64,8 @@ load_dotenv()
 
 # OpenAI API setup
 openai_api_data = dict(
-    api_key = os.getenv("OPENAI_API_KEY"),
-    base_url = os.getenv("OPENAI_API_BASE")
+    api_key = os.getenv("OPEN_ROUTER_API_KEY"),
+    base_url = os.getenv("OPEN_ROUTER_API_BASE")
 )
 
 # Anthropic API setup
@@ -365,14 +371,12 @@ async def process_single_case(i, d, args):
         
         print(f"=============== num {i} ==================")
         print(user_question)
-        print('math model: ------------------------------------------------------------------------------------------------')
-        print(f'{math_model}')
-        print('executed content: ------------------------------------------------------------------------------------------------')
-        print(f'{executed_content}')
-        print('------------------------------------------------------------------------------------------------')
+        print('-------------')
+        print(f'math model: {math_model}')
+        print(f'executed content: {executed_content}')
         print(f'solve: {is_solve_success}, llm: {llm_result}, ground truth: {answer}')
         print(f'[Final] run pass: {pass_flag}, solve correct: {correct_flag}')
-        print("=================================================================================================")
+        print(' ')
         
         return llm_result, pass_flag, correct_flag, i, failure_reason
     

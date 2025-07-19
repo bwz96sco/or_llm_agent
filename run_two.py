@@ -58,7 +58,7 @@ load_dotenv()
 
 # OpenAI API setup
 openai_api_data = dict(
-    api_key = os.getenv("OPENAI_API_KEY"),
+    api_key = os.getenv("OPENAI_API_KEY_two"),
     base_url = os.getenv("OPENAI_API_BASE")
 )
 
@@ -365,14 +365,12 @@ async def process_single_case(i, d, args):
         
         print(f"=============== num {i} ==================")
         print(user_question)
-        print('math model: ------------------------------------------------------------------------------------------------')
-        print(f'{math_model}')
-        print('executed content: ------------------------------------------------------------------------------------------------')
-        print(f'{executed_content}')
-        print('------------------------------------------------------------------------------------------------')
+        print('-------------')
+        print(f'math model: {math_model}')
+        print(f'executed content: {executed_content}')
         print(f'solve: {is_solve_success}, llm: {llm_result}, ground truth: {answer}')
         print(f'[Final] run pass: {pass_flag}, solve correct: {correct_flag}')
-        print("=================================================================================================")
+        print(' ')
         
         return llm_result, pass_flag, correct_flag, i, failure_reason
     

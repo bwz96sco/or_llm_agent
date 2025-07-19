@@ -14,16 +14,7 @@ mkdir -p logs
 # debug_flag: "debug" to enable debugging mode, empty string to disable
 
 configurations=(
-    ",debug,o3,data/datasets/Default.json"
-    ",debug,o3,data/datasets/IndustryOR_converted.json"
-    ",debug,o3,data/datasets/ComplexLP_converted.json"
-    ",debug,o3,data/datasets/EasyLP_converted.json"
-    ",debug,o3,data/datasets/NL4OPT_converted.json"
-    ",debug,gemini-2.5-pro,data/datasets/Default.json"
-    ",debug,gemini-2.5-pro,data/datasets/IndustryOR_converted.json"
-    ",debug,gemini-2.5-pro,data/datasets/ComplexLP_converted.json"
-    ",debug,gemini-2.5-pro,data/datasets/EasyLP_converted.json"
-    ",debug,gemini-2.5-pro,data/datasets/NL4OPT_converted.json"
+    "math,,DeepSeek-R1,data/datasets/Default.json"
 )
 
 # Counter for evaluation numbering
@@ -39,7 +30,7 @@ for config in "${configurations[@]}"; do
     echo "Configuration: math_flag='$math_flag', debug_flag='$debug_flag', model='$model', data_path='$data_path'"
     
     # Build the command
-    cmd="python or_llm_eval_async_resilient.py"
+    cmd="python run_two.py"
     
     # Add --math flag if math_flag is "math"
     if [ "$math_flag" = "math" ]; then
