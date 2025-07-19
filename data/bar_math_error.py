@@ -17,11 +17,11 @@ plt.rcParams["font.family"] = "Times New Roman"
 fig, ax = plt.subplots(figsize=(12, 6))
 
 bars1 = ax.bar(x - width/2, math_error_agent, width,
-               label='Math Error (Agent)', hatch='//',
+               label='Math Error (OR-LLM-Agent)', hatch='//',
                color='lightgray', edgecolor='white')
 
 bars2 = ax.bar(x + width/2, math_error_no_agent, width,
-               label='Math Error (No Agent)', hatch='\\\\',
+               label='Math Error (No OR-LLM-Agent)', hatch='\\\\',
                color='lightblue', edgecolor='white')
 
 # 添加柱状图顶部数值标签
@@ -29,13 +29,15 @@ for bar in bars1 + bars2:
     height = bar.get_height()
     ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height),
                 xytext=(0, 3), textcoords="offset points",
-                ha='center', va='bottom', fontsize=9)
+                ha='center', va='bottom', fontsize=14)
 
 # 设置标签与图例
-ax.set_ylabel('Scores (%)', fontsize=12)
+ax.set_ylabel('Scores (%)', fontsize=16)
+ax.tick_params(axis='y', labelsize=16)
 ax.set_xticks(x)
-ax.set_xticklabels(models, fontsize=11)
+ax.set_xticklabels(models, fontsize=18)
 ax.set_ylim(0, 60)
+ax.grid(axis='y', linestyle='--', alpha=0.5)
 
 # 图例置顶
 ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1),

@@ -39,6 +39,8 @@ hatch_map = {
     "DeepSeek-R1": "*"
 }
 
+plt.rcParams["font.family"] = "Times New Roman"
+
 # 自定义图例句柄（大图标，保留花纹）
 legend_handles = [
     Patch(facecolor=color_map[model],
@@ -75,12 +77,13 @@ for i, model in enumerate(models):
                         xytext=(0, 3),
                         textcoords="offset points",
                         ha='center', va='bottom',
-                        fontsize=10)
+                        fontsize=14)
 
 # 设置坐标轴与网格
-ax.set_ylabel("Scores (%)", fontname='Times New Roman')
+ax.set_ylabel("Scores (%)", fontsize=16)
+ax.tick_params(axis='y', labelsize=16)
 ax.set_xticks(x)
-ax.set_xticklabels(datasets, fontname='Times New Roman')
+ax.set_xticklabels(datasets, fontsize=18)
 ax.set_ylim(0, 100)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 
@@ -91,7 +94,7 @@ ax.legend(
     bbox_to_anchor=(0.5, 1.16),
     ncol=4,
     frameon=False,
-    prop={'size': 14, 'family': 'Times New Roman'},
+    prop={'size': 16, 'family': 'Times New Roman'},
     handlelength=2.5,
     handleheight=1.5
 )

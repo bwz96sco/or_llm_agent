@@ -53,8 +53,10 @@ for i, method in enumerate(methods):
 # 设置坐标轴标签和刻度
 ax.set_ylabel("Scores (%)", fontsize=16)
 ax.set_xticks(x + bar_width * (len(methods) - 1) / 2)
-ax.set_xticklabels(models, rotation=15, fontsize=16)
+ax.set_xticklabels(models, rotation=15, fontsize=18)
+ax.tick_params(axis='y', labelsize=16)
 ax.set_ylim(0, 100)
+ax.grid(axis='y', linestyle='--', alpha=0.5)
 
 # 图例放在顶部，两行排列
 ax.legend(title="", loc="upper center", bbox_to_anchor=(0.5, 1.18),
