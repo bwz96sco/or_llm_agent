@@ -48,17 +48,15 @@ pip install -r requirements.txt
 
 ### Getting Started
 ```bash
-# Start to evaluate current dataset
-python or_llm_eval.py --agent
+# Start to evaluate Default dataset directly with o3-mini model
+python or_llm_eval_async_resilient.py
 
-#if you do not sepcify agent argument, you can use the LLM to solve problems directly
-python or_llm_eval.py
+#You can also set some arguments(--math to enable math model agent, --debug to enable debugging agent, --model to specify model, --data_path to specify the path of dataset)
+python run_openrouter.py --math --debug --model deepseek/deepseek-r1-0528 --data_path data/datasets/Default.json
 
-#you can also specify the model
-python or_llm_eval.py --agent --model gpt-4o-mini-2024-07-18
-
-#use async methods to run tasks parallelly
-python or_llm_eval_async.py --agent
+#You can use the preset bash script to run evaluation in batch
+chmod +x run_eval_batch_agent.sh
+bash ./run_eval_batch_agent.sh
 ```
 Make sure to setup your OpenAI API key in `.env` file!
 

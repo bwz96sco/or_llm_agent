@@ -286,7 +286,7 @@ def or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
 
 
 if __name__ == "__main__":
-    with open('data/datasets/dataset_md_result.json', 'r') as f:
+    with open('data/datasets/Default.json', 'r') as f:
         dataset = json.load(f)
     # print(dataset['0'])
     console = Console()

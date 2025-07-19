@@ -49,17 +49,15 @@ pip install -r requirements.txt
 
 ### 快速开始
 ```bash
-# 启动评估现有数据集
-python or_llm_eval.py --agent
+# 开始使用 o3-mini 模型直接评估 Default 数据集
+python or_llm_eval_async_resilient.py
 
-# 如果不指定 agent 参数，模型将直接用于求解
-python or_llm_eval.py
+# 您也可以设置一些参数（--math 启用数学模型Agent，--debug 启用调试Agent，--model 指定模型，--data_path 指定数据集路径）
+python run_openrouter.py --math --debug --model deepseek/deepseek-r1-0528 --data_path data/datasets/Default.json
 
-# 你也可以指定使用的模型
-python or_llm_eval.py --agent --model gpt-4o-mini-2024-07-18
-
-# 使用异步方式并行运行任务
-python or_llm_eval_async.py --agent
+# 您可以使用预设的 bash 脚本批量运行评估
+chmod +x run_eval_batch_agent.sh
+bash ./run_eval_batch_agent.sh
 ```
 
 请确保在 `.env` 文件中设置你的 OpenAI API 密钥！

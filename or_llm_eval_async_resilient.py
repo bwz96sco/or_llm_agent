@@ -395,7 +395,7 @@ def parse_args():
                         help='Enable debugging mode with multiple attempts to fix code errors')
     parser.add_argument('--model', type=str, default='o3-mini',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
-    parser.add_argument('--data_path', type=str, default='data/datasets/dataset_combined_result.json',
+    parser.add_argument('--data_path', type=str, default='data/datasets/Default.json',
                         help='Path to the dataset JSON file')
     return parser.parse_args()
 
@@ -410,7 +410,7 @@ async def main():
     dataset_items = list(dataset.items())
     
     # Process dataset in batches of 50
-    batch_size = 20
+    batch_size = 50
     all_results = []
     total_batches = (len(dataset_items) + batch_size - 1) // batch_size  # Ceiling division
     
