@@ -395,16 +395,51 @@ def parse_args():
                         help='Enable debugging mode with multiple attempts to fix code errors')
     parser.add_argument('--model', type=str, default='o3-mini',
                         help='Model name to use for LLM queries. Use "claude-..." for Claude models.')
-    parser.add_argument('--data_path', type=str, default='data/datasets/Default.json',
-                        help='Path to the dataset JSON file')
+    parser.add_argument('--data_path', type=str, default='data/datasets/IndustryOR.json',
+                        help='Path to the dataset JSON file (supports both JSONL and regular JSON formats)')
     return parser.parse_args()
+
+def load_dataset(data_path):
+    """
+    Load dataset from either JSONL format (IndustryOR.json, BWOR.json) or regular JSON format
+    """
+    dataset = {}
+    
+    with open(data_path, 'r', encoding='utf-8') as f:
+        # Try to detect format by reading first line
+        first_line = f.readline().strip()
+        f.seek(0)  # Reset file pointer
+        
+        if first_line.startswith('{"en_question"') or first_line.startswith('{"cn_question"'):
+            # JSONL format (IndustryOR.json, BWOR.json)
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if line:
+                    try:
+                        item = json.loads(line)
+                        # Convert to expected format
+                        dataset_item = {
+                            'question': item.get('en_question', item.get('cn_question', '')),
+                            'answer': item.get('en_answer', item.get('cn_answer', '')),
+                            'difficulty': item.get('difficulty', 'Unknown'),
+                            'id': item.get('id', line_num - 1)
+                        }
+                        # Use id as string key
+                        dataset[str(dataset_item['id'])] = dataset_item
+                    except json.JSONDecodeError as e:
+                        print(f"Warning: Could not parse line {line_num}: {line}")
+                        continue
+        else:
+            # Regular JSON format (legacy)
+            dataset = json.load(f)
+    
+    return dataset
 
 async def main():
     # Load dataset from JSON file
     args = parse_args()
     
-    with open(args.data_path, 'r') as f:
-        dataset = json.load(f)
+    dataset = load_dataset(args.data_path)
     
     # Convert dataset items to a list for easier chunking
     dataset_items = list(dataset.items())

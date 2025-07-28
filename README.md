@@ -52,7 +52,7 @@ pip install -r requirements.txt
 python or_llm_eval_async_resilient.py
 
 #You can also set some arguments(--math to enable math model agent, --debug to enable debugging agent, --model to specify model, --data_path to specify the path of dataset)
-python run_openrouter.py --math --debug --model deepseek/deepseek-r1-0528 --data_path data/datasets/Default.json
+python run_openrouter.py --math --debug --model deepseek/deepseek-r1-0528 --data_path data/datasets/IndustryOR.json
 
 #You can use the preset bash script to run evaluation in batch
 chmod +x run_eval_batch_agent.sh

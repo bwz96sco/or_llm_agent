@@ -50,19 +50,19 @@ for i, (model, color, hatch) in enumerate(zip(models, colors, hatches)):
             f'{height:.2f}',  # 保留两位小数
             ha='center',
             va='bottom' if height >= 0 else 'top',
-            fontsize=14
+            fontsize=18
         )
 
 # 图表美化
-ax.set_ylabel('Performance Difference (%)', fontsize=16)
-ax.tick_params(axis='y', labelsize=16)
+ax.set_ylabel('Performance Difference (%)', fontsize=28)
+ax.tick_params(axis='y', labelsize=28)
 ax.set_xticks(x + 1.5 * bar_width)
-ax.set_xticklabels(datasets, fontsize=18)
+ax.set_xticklabels(datasets, fontsize=28)
 ax.axhline(0, color='black', linewidth=0.8)
 ax.set_ylim(-25, 40)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
-ax.legend(title="", loc="upper center", bbox_to_anchor=(0.5, 1.18),
-          ncol=2, fontsize=16, handlelength=2.5, columnspacing=1.5, frameon=False)
+ax.legend(title="", loc="upper center", bbox_to_anchor=(0.5, 1.35),
+          ncol=2, fontsize=28, handlelength=2.5, columnspacing=1.5, frameon=False)
 
 # 移除顶部和右侧边框线
 ax.spines['top'].set_visible(False)

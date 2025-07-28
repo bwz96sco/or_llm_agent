@@ -53,7 +53,7 @@ pip install -r requirements.txt
 python or_llm_eval_async_resilient.py
 
 # 您也可以设置一些参数（--math 启用数学模型Agent，--debug 启用调试Agent，--model 指定模型，--data_path 指定数据集路径）
-python run_openrouter.py --math --debug --model deepseek/deepseek-r1-0528 --data_path data/datasets/Default.json
+python run_openrouter.py --math --debug --model deepseek/deepseek-r1-0528 --data_path data/datasets/IndustryOR.json
 
 # 您可以使用预设的 bash 脚本批量运行评估
 chmod +x run_eval_batch_agent.sh

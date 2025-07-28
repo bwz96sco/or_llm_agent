@@ -17,11 +17,11 @@ plt.rcParams["font.family"] = "Times New Roman"
 fig, ax = plt.subplots(figsize=(12, 6))
 
 bars1 = ax.bar(x - width/2, math_error_agent, width,
-               label='Math Model Accuracy (OR-LLM-Agent)', hatch='//',
+               label='OR-LLM-Agent', hatch='//',
                color='lightgray', edgecolor='white')
 
 bars2 = ax.bar(x + width/2, math_error_no_agent, width,
-               label='Math Model Accuracy (No OR-LLM-Agent)', hatch='\\\\',
+               label='Reasoning and Non-Reasoning LLMs', hatch='\\\\',
                color='lightblue', edgecolor='white')
 
 # 添加柱状图顶部数值标签
@@ -49,5 +49,5 @@ ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1),
           ncol=2, fontsize=16, frameon=False)
 
 plt.tight_layout()
-plt.savefig("data/images/bar_math_error.png", dpi=300, bbox_inches='tight')
+plt.savefig("data/images/bar_math_accurary.png", dpi=300, bbox_inches='tight')
 plt.show()

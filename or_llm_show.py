@@ -286,8 +286,13 @@ def or_llm_agent(user_question, model_name="o3-mini", max_attempts=3):
 
 
 if __name__ == "__main__":
-    with open('data/datasets/Default.json', 'r') as f:
-        dataset = json.load(f)
+    # Import the load_dataset function from the async script
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from or_llm_eval_async_resilient import load_dataset
+    
+    dataset = load_dataset('data/datasets/IndustryOR.json')
     # print(dataset['0'])
     console = Console()
 

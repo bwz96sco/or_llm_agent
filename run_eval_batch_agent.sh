@@ -14,8 +14,8 @@ mkdir -p logs
 # debug_flag: "debug" to enable debugging mode, empty string to disable
 
 configurations=(
-    "math,debug,DeepSeek-R1,data/datasets/Default.json"
-    " , ,o3,data/datasets/Default.json"
+    "math,debug,DeepSeek-R1,data/datasets/IndustryOR.json"
+" , ,o3,data/datasets/IndustryOR.json"
 )
 
 # Counter for evaluation numbering

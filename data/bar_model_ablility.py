@@ -77,13 +77,22 @@ for i, model in enumerate(models):
                         xytext=(0, 3),
                         textcoords="offset points",
                         ha='center', va='bottom',
-                        fontsize=14)
+                        fontsize=26)
+        else:
+            # For NaN values, show "NA¹" at a fixed height above x-axis
+            ax.annotate('N/A',
+                        xy=(bar.get_x() + bar.get_width() / 2, 5),
+                        xytext=(0, 0),
+                        textcoords="offset points",
+                        ha='center', va='bottom',
+                        fontsize=26,
+                        fontweight='bold')
 
 # 设置坐标轴与网格
-ax.set_ylabel("Scores (%)", fontsize=16)
-ax.tick_params(axis='y', labelsize=16)
+ax.set_ylabel("Scores (%)", fontsize=28)
+ax.tick_params(axis='y', labelsize=28)
 ax.set_xticks(x)
-ax.set_xticklabels(datasets, fontsize=18)
+ax.set_xticklabels(datasets, fontsize=28)
 ax.set_ylim(0, 100)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 
@@ -96,10 +105,10 @@ ax.spines['right'].set_visible(False)
 ax.legend(
     handles=legend_handles,
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.16),
+    bbox_to_anchor=(0.5, 1.4),
     ncol=4,
     frameon=False,
-    prop={'size': 16, 'family': 'Times New Roman'},
+    prop={'size': 20, 'family': 'Times New Roman'},
     handlelength=2.5,
     handleheight=1.5
 )
