@@ -3,7 +3,7 @@
 OR-LLM-Agent: 基于推理大型语言模型的运筹优化问题建模与求解自动化框架
 </h1>
 
-[英文版本 English Version](./README_MCP.md)
+[英文版本 English Version](./README.md)
 
 <p align="center"> 
 <a href="https://arxiv.org/abs/2503.10009" target="_blank"><img src="https://img.shields.io/badge/arXiv-论文-FF6B6B?style=for-the-badge&logo=arxiv&logoColor=white" alt="arXiv"></a>
