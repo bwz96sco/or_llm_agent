@@ -16,6 +16,7 @@ from or_llm_agent.benchmark_audit import (
     load_source_manifest,
     run_batch,
     sha256_file,
+    source_quote_is_exact,
     validate_policy,
 )
 
@@ -68,6 +69,12 @@ def test_manifest_rejects_hidden_fields(tmp_path: Path) -> None:
 
     with pytest.raises(AuditRunnerError, match="fields must be exactly"):
         load_source_manifest(manifest, campaign_dir)
+
+
+def test_source_quote_accepts_ordered_complete_sentences_but_not_stitched_clauses() -> None:
+    statement = "First complete sentence. Middle sentence. Last complete sentence."
+    assert source_quote_is_exact("First complete sentence. Last complete sentence.", statement)
+    assert not source_quote_is_exact("First complete. Last complete sentence.", statement)
 
 
 def _write_success_artifacts(workspace: Path, row_id: str, source_sha256: str) -> None:

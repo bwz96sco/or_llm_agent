@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import math
+import re
 import shlex
 import shutil
 import subprocess
@@ -180,7 +181,8 @@ Write these exact files in the current workspace:
 - Exact header: `{anchor_header}`
 - One row per material modeling element.
 - support_label must be one of supported, contradicted, unsupported, ambiguous.
-- source_quote must be exact statement text, or `UNSUPPORTED_BY_SOURCE`.
+- source_quote must be one contiguous exact statement span, or multiple complete exact sentences kept intact and in source order, or `UNSUPPORTED_BY_SOURCE`.
+- Never stitch partial clauses, paraphrase, or omit words inside an anchored sentence. Use separate rows when separate clauses are needed.
 
 `audit.json`
 - JSON object with: row_id, source_sha256, source_status, chosen_domain, mechanisms, material_ambiguities, summary.
@@ -361,6 +363,31 @@ def _same_solver_report(agent: dict[str, Any], parent: dict[str, Any]) -> bool:
     return True
 
 
+def source_quote_is_exact(quote: str, statement: str) -> bool:
+    if quote == "UNSUPPORTED_BY_SOURCE" or quote in statement:
+        return True
+    fragments = [fragment.strip() for fragment in re.split(r"(?<=[.!?])\s+", quote) if fragment.strip()]
+    if len(fragments) < 2 or any(fragment not in statement for fragment in fragments):
+        return False
+    positions = [statement.index(fragment) for fragment in fragments]
+    return positions == sorted(positions)
+
+
+def _problem_source_quote_errors(payload: Any, statement: str, path: str = "problem.json") -> list[str]:
+    errors: list[str] = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            child_path = f"{path}.{key}"
+            if key == "source_quote" and isinstance(value, str) and not source_quote_is_exact(value, statement):
+                errors.append(f"{child_path}: source quote is not exact")
+            else:
+                errors.extend(_problem_source_quote_errors(value, statement, child_path))
+    elif isinstance(payload, list):
+        for index, value in enumerate(payload):
+            errors.extend(_problem_source_quote_errors(value, statement, f"{path}[{index}]"))
+    return errors
+
+
 def validate_artifacts(
     workspace: Path,
     *,
@@ -396,6 +423,7 @@ def validate_artifacts(
         missing = problem_fields - set(problem)
         if missing:
             errors.append(f"problem.json: missing fields {sorted(missing)}")
+        errors.extend(_problem_source_quote_errors(problem, statement))
     if isinstance(audit, dict):
         if audit.get("source_status") not in {"well_posed", "ambiguous", "inconsistent"}:
             errors.append("audit.json: invalid source_status")
@@ -415,7 +443,7 @@ def validate_artifacts(
             errors.append("source_anchors.csv: no rows")
         for line_number, anchor in enumerate(anchors, start=2):
             quote = str(anchor.get("source_quote", ""))
-            if quote != "UNSUPPORTED_BY_SOURCE" and quote not in statement:
+            if not source_quote_is_exact(quote, statement):
                 errors.append(f"source_anchors.csv:{line_number}: source quote is not exact")
             if anchor.get("support_label") not in {"supported", "contradicted", "unsupported", "ambiguous"}:
                 errors.append(f"source_anchors.csv:{line_number}: invalid support_label")
@@ -591,4 +619,52 @@ def run_batch(
         },
     }
     write_json(output_dir / "batch-summary.json", summary)
+    return results
+
+
+def revalidate_batch(run_dir: Path, project_root: Path) -> list[dict[str, Any]]:
+    row_root = run_dir / "rows"
+    if not row_root.is_dir():
+        raise AuditRunnerError(f"run has no rows directory: {row_root}")
+    results: list[dict[str, Any]] = []
+    for workspace in sorted(path for path in row_root.iterdir() if path.is_dir()):
+        manifest_path = workspace / "run-manifest.json"
+        input_path = workspace / "run-input.json"
+        statement_path = workspace / "statement.txt"
+        if not manifest_path.is_file() or not input_path.is_file() or not statement_path.is_file():
+            raise AuditRunnerError(f"{workspace.name}: missing recorded run input, statement, or manifest")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        run_input = json.loads(input_path.read_text(encoding="utf-8"))
+        statement = statement_path.read_text(encoding="utf-8")
+        validation = validate_artifacts(
+            workspace,
+            row_id=str(run_input["row_id"]),
+            source_sha256=str(run_input["source_sha256"]),
+            statement=statement,
+            project_root=project_root,
+        )
+        initial_status = manifest.get("terminal_status", "unknown")
+        infrastructure_ok = (
+            manifest.get("returncode") == 0
+            and not manifest.get("timed_out")
+            and not manifest.get("leakage_findings")
+        )
+        effective_status = "success" if infrastructure_ok and validation["status"] == "valid" else initial_status
+        result = {
+            "row_id": run_input["row_id"],
+            "initial_terminal_status": initial_status,
+            "effective_terminal_status": effective_status,
+            "model_sessions_added": 0,
+            "validation": validation,
+        }
+        write_json(workspace / "revalidation.json", result)
+        results.append(result)
+    summary = {
+        "schema_version": "benchmark_audit_revalidation_v1",
+        "rows": len(results),
+        "effective_success": sum(row["effective_terminal_status"] == "success" for row in results),
+        "model_sessions_added": 0,
+        "results": results,
+    }
+    write_json(run_dir / "revalidation-summary.json", summary)
     return results

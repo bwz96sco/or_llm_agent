@@ -9,6 +9,7 @@ from or_llm_agent.benchmark_audit import (
     AuditOptions,
     AuditRunnerError,
     load_source_manifest,
+    revalidate_batch,
     run_batch,
     validate_policy,
 )
@@ -29,16 +30,24 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout-seconds", type=int, default=1800)
     run.add_argument("--ids", nargs="*")
     run.add_argument("--dry-run", action="store_true")
+    revalidate = subparsers.add_parser("revalidate-batch")
+    revalidate.add_argument("--run-dir", type=Path, required=True)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.command != "run-batch":
+    if args.command not in {"run-batch", "revalidate-batch"}:
         parser.print_help()
         return 2
     try:
+        if args.command == "revalidate-batch":
+            project_root = Path(__file__).resolve().parents[2]
+            results = revalidate_batch(args.run_dir, project_root)
+            failures = sum(result["effective_terminal_status"] != "success" for result in results)
+            print(json.dumps({"rows": len(results), "success": len(results) - failures, "failures": failures}))
+            return 1 if failures else 0
         options = AuditOptions(
             role=args.role,
             model=args.model,
