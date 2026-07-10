@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 or-llm-agent = "or_llm_agent.cli:main"
+or-llm-audit = "or_llm_agent.audit_cli:main"
 
 [build-system]
 requires = ["hatchling"]
