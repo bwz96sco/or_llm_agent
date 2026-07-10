@@ -422,6 +422,9 @@ class ProblemSpecGenerationTests(unittest.TestCase):
             self.assertEqual(summary["capability_status"], "needs_human")
             self.assertEqual(summary["capability_missing_information"], ["numeric truck costs c_j are not provided"])
             self.assertEqual(summary["classification"], "blocked_capability")
+            self.assertEqual(summary["terminal_state"], "excluded_with_reason")
+            self.assertEqual(summary["accounting_state"], "excluded_with_reason")
+            self.assertEqual(summary["exclusion_reason"], "capability_needs_human")
 
     def test_clarification_question_schema_validation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1503,11 +1506,65 @@ class ProblemSpecGenerationTests(unittest.TestCase):
             self.assertEqual(batch["summary"]["total"], 2)
             self.assertEqual(batch["summary"]["succeeded"], 2)
             self.assertEqual(batch["summary"]["capability_statuses"]["supported"], 2)
+            self.assertEqual(batch["summary"]["terminal_states"]["generated"], 2)
+            self.assertEqual(batch["summary"]["accounted"], 2)
+            self.assertEqual(batch["summary"]["unaccounted"], 0)
             self.assertEqual(batch["summary"]["spec_fidelity_statuses"]["not_reviewed"], 2)
             self.assertEqual(batch["summary"]["spec_fidelity_gate_statuses"]["manual_review_required"], 2)
             self.assertEqual(len(batch["rows"]), 2)
+            self.assertEqual({row["terminal_state"] for row in batch["rows"]}, {"generated"})
             self.assertTrue((artifact_dir / "report.md").exists())
             self.assertTrue((artifact_dir / "CASE-001" / "spec" / "fidelity-review.json").exists())
+
+    def test_solve_batch_marks_capability_block_as_excluded_with_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            statements_dir = root / "statements"
+            statements_dir.mkdir()
+            (statements_dir / "CASE-SYMBOLIC.txt").write_text("Use trucks with symbolic costs c_j.", encoding="utf-8")
+            artifact_dir = root / "batch"
+            capability = {
+                "status": "needs_human",
+                "problem_family": "assignment",
+                "supported_features": ["linear assignment structure"],
+                "unsupported_features": [],
+                "missing_information": ["numeric truck costs c_j are not provided"],
+                "recommended_next_action": "ask_human",
+                "confidence": 0.9,
+                "review_note": "Symbolic objective coefficients require clarification.",
+            }
+
+            with (
+                patch("or_llm_agent.cli._run_capability_agent", return_value=_capability_agent_result(root, capability)),
+                patch("or_llm_agent.cli._run_problem_spec_agent") as run_problem_spec_agent,
+            ):
+                exit_code = main(
+                    [
+                        "solve-batch",
+                        "--mode",
+                        "agent",
+                        "--ids",
+                        "CASE-SYMBOLIC",
+                        "--statements-dir",
+                        str(statements_dir),
+                        "--artifact-dir",
+                        str(artifact_dir),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 1)
+            run_problem_spec_agent.assert_not_called()
+            batch = json.loads((artifact_dir / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(batch["summary"]["terminal_states"]["excluded_with_reason"], 1)
+            self.assertEqual(batch["summary"]["exclusion_reasons"]["capability_needs_human"], 1)
+            self.assertEqual(batch["summary"]["accounted"], 1)
+            self.assertEqual(batch["summary"]["unaccounted"], 0)
+            row = batch["rows"][0]
+            self.assertEqual(row["capability_status"], "needs_human")
+            self.assertEqual(row["classification"], "blocked_capability")
+            self.assertEqual(row["terminal_state"], "excluded_with_reason")
+            self.assertEqual(row["accounting_state"], "excluded_with_reason")
+            self.assertEqual(row["exclusion_reason"], "capability_needs_human")
 
     def test_solve_batch_preserves_serial_behavior_with_concurrency_one(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1857,7 +1914,14 @@ class ProblemSpecGenerationTests(unittest.TestCase):
             row_by_id = {row["problem_id"]: row for row in batch["rows"]}
             self.assertEqual(row_by_id["CASE-FAIL"]["exit_code"], 1)
             self.assertIn("RuntimeError", row_by_id["CASE-FAIL"]["batch_error"])
+            self.assertEqual(row_by_id["CASE-FAIL"]["terminal_state"], "excluded_with_reason")
+            self.assertEqual(row_by_id["CASE-FAIL"]["exclusion_reason"], "batch_error")
             self.assertEqual(row_by_id["CASE-OK"]["exit_code"], 0)
+            self.assertEqual(row_by_id["CASE-OK"]["terminal_state"], "generated")
+            self.assertEqual(batch["summary"]["terminal_states"]["excluded_with_reason"], 1)
+            self.assertEqual(batch["summary"]["terminal_states"]["generated"], 1)
+            self.assertEqual(batch["summary"]["accounted"], 2)
+            self.assertEqual(batch["summary"]["unaccounted"], 0)
 
     def test_review_fidelity_accepts_case(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

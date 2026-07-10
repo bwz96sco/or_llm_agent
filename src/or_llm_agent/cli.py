@@ -689,6 +689,10 @@ def solve_command(args: argparse.Namespace) -> int:
         "model_generation_status": "skipped",
         "verification_status": "skipped",
         "classification": "skipped",
+        "terminal_state": "excluded_with_reason",
+        "accounting_state": "excluded_with_reason",
+        "exclusion_reason": "not_generated",
+        "blocking_reason": "not_generated",
     }
 
     if not _capability_is_supported(capability_result):
@@ -697,6 +701,7 @@ def solve_command(args: argparse.Namespace) -> int:
             f"capability routing returned {capability_result['status']}; "
             "ProblemSpec generation skipped"
         )
+        _apply_solve_terminal_accounting(summary)
         _write_summary(
             spec_status_path,
             {
@@ -743,6 +748,7 @@ def solve_command(args: argparse.Namespace) -> int:
 
     if not _spec_is_ready(spec_result):
         summary["reason"] = "spec validation failed; model generation skipped"
+        _apply_solve_terminal_accounting(summary)
         _write_spec_fidelity_review(
             spec_fidelity_review_path,
             report_path=spec_fidelity_report_path,
@@ -796,6 +802,7 @@ def solve_command(args: argparse.Namespace) -> int:
             **codex_run_metadata_summary_fields(generation.get("codex_run_metadata"), prefix="generation"),
         }
     )
+    _apply_solve_terminal_accounting(summary)
     _write_spec_fidelity_review(
         spec_fidelity_review_path,
         report_path=spec_fidelity_report_path,
@@ -834,6 +841,7 @@ def solve_batch_command(args: argparse.Namespace) -> int:
         )
         if result.error:
             row["batch_error"] = result.error
+            _apply_solve_terminal_accounting(row, batch_error=result.error)
         rows.append(row)
 
     summary = summarize_solve_batch(rows)
@@ -2498,11 +2506,48 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _solve_exclusion_reason(row: dict[str, Any], *, batch_error: str = "") -> str:
+    if batch_error:
+        return "batch_error"
+    capability_status = str(row.get("capability_status", ""))
+    if capability_status in {"needs_human", "unsupported"}:
+        return f"capability_{capability_status}"
+    if row.get("classification") == "blocked_capability":
+        return "capability_blocked"
+    if row.get("classification") == "missing_summary":
+        return "missing_summary"
+    spec_status = str(row.get("spec_validation_status", ""))
+    if spec_status and spec_status not in {"passed", "missing_summary"}:
+        return f"spec_validation_{spec_status}"
+    model_status = str(row.get("model_generation_status", ""))
+    if model_status and model_status != "generated":
+        return f"model_generation_{model_status}"
+    return "not_generated"
+
+
+def _apply_solve_terminal_accounting(row: dict[str, Any], *, batch_error: str = "") -> None:
+    if row.get("model_generation_status") == "generated":
+        row["terminal_state"] = "generated"
+        row["accounting_state"] = "generated"
+        row["exclusion_reason"] = ""
+        row["blocking_reason"] = ""
+        return
+
+    reason = _solve_exclusion_reason(row, batch_error=batch_error)
+    row["terminal_state"] = "excluded_with_reason"
+    row["accounting_state"] = "excluded_with_reason"
+    row["exclusion_reason"] = reason
+    row["blocking_reason"] = reason
+
+
 def summarize_solve_batch(rows: list[dict[str, Any]]) -> dict[str, Any]:
     classifications: dict[str, int] = {}
     capability_statuses: dict[str, int] = {}
     spec_statuses: dict[str, int] = {}
     model_statuses: dict[str, int] = {}
+    terminal_states: dict[str, int] = {}
+    accounting_states: dict[str, int] = {}
+    exclusion_reasons: dict[str, int] = {}
     fidelity_statuses: dict[str, int] = {}
     fidelity_gate_statuses: dict[str, int] = {}
     fidelity_resolution_statuses: dict[str, int] = {}
@@ -2518,6 +2563,13 @@ def summarize_solve_batch(rows: list[dict[str, Any]]) -> dict[str, Any]:
         capability_statuses[capability_status] = capability_statuses.get(capability_status, 0) + 1
         spec_statuses[row["spec_validation_status"]] = spec_statuses.get(row["spec_validation_status"], 0) + 1
         model_statuses[row["model_generation_status"]] = model_statuses.get(row["model_generation_status"], 0) + 1
+        terminal_state = str(row.get("terminal_state", "missing_terminal_state"))
+        terminal_states[terminal_state] = terminal_states.get(terminal_state, 0) + 1
+        accounting_state = str(row.get("accounting_state", terminal_state))
+        accounting_states[accounting_state] = accounting_states.get(accounting_state, 0) + 1
+        if terminal_state == "excluded_with_reason":
+            reason = str(row.get("exclusion_reason") or row.get("blocking_reason") or "missing_reason")
+            exclusion_reasons[reason] = exclusion_reasons.get(reason, 0) + 1
         fidelity_status = row.get("spec_fidelity_status", "unknown")
         fidelity_statuses[fidelity_status] = fidelity_statuses.get(fidelity_status, 0) + 1
         gate = row.get("spec_fidelity_gate_status", "unknown")
@@ -2546,6 +2598,11 @@ def summarize_solve_batch(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "capability_statuses": capability_statuses,
         "spec_validation_statuses": spec_statuses,
         "model_generation_statuses": model_statuses,
+        "terminal_states": terminal_states,
+        "accounting_states": accounting_states,
+        "accounted": sum(1 for row in rows if row.get("terminal_state") in {"generated", "excluded_with_reason"}),
+        "unaccounted": sum(1 for row in rows if row.get("terminal_state") not in {"generated", "excluded_with_reason"}),
+        "exclusion_reasons": exclusion_reasons,
         "spec_fidelity_statuses": fidelity_statuses,
         "spec_fidelity_gate_statuses": fidelity_gate_statuses,
         "fidelity_resolution_statuses": fidelity_resolution_statuses,
@@ -3031,6 +3088,10 @@ def _solve_batch_row(
         "model_generation_status": "missing_summary",
         "verification_status": "missing_summary",
         "classification": "missing_summary",
+        "terminal_state": "excluded_with_reason",
+        "accounting_state": "excluded_with_reason",
+        "exclusion_reason": "missing_summary",
+        "blocking_reason": "missing_summary",
     }
     summary_path = case_dir / "summary.json"
     if not summary_path.is_file():
@@ -3111,6 +3172,7 @@ def _solve_batch_row(
     ):
         if key in case_summary:
             row[key] = case_summary[key]
+    _apply_solve_terminal_accounting(row)
     return row
 
 
