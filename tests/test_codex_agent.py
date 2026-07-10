@@ -14,6 +14,7 @@ from or_llm_agent.codex_agent import (
     build_agent_prompt,
     build_codex_command,
     run_codex_agent,
+    validate_proof_anchor_ledger,
 )
 
 
@@ -92,6 +93,38 @@ class CodexAgentModeTests(unittest.TestCase):
             self.assertIn("The parent CLI will harvest those fallback files", prompt)
             self.assertIn("Start now. Complete the workflow without asking for confirmation.", prompt)
             self.assertIn("Do not run cleanup or removal commands", prompt)
+            self.assertNotIn("Proof anchor ledger CSV", prompt)
+
+    def test_prompt_documents_proof_anchor_contract_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            paths = _paths(Path(temp_dir), "BWOR-001")
+            options = CodexAgentOptions(
+                codex_model=None,
+                codex_sandbox="workspace-write",
+                codex_approval="never",
+                max_repair_attempts=2,
+                timeout_seconds=30,
+                source_anchor_contract="proof_carrying",
+            )
+
+            prompt = build_agent_prompt(
+                problem_id="BWOR-001",
+                record={"en_question": "Build a tiny LP."},
+                problem={"instance": {"sets": ["x"]}, "metamorphic": {}},
+                problem_path=Path("/tmp/problem.json"),
+                paths=paths,
+                options=options,
+                verify_command=["python", "-m", "or_ci.cli"],
+            )
+
+            self.assertIn(f"Proof anchor ledger CSV: {paths.proof_anchor_ledger_path}", prompt)
+            self.assertIn("row_id,variant,element_id,element_type", prompt)
+            self.assertIn("Allowed `element_type` values are singular only", prompt)
+            self.assertIn("Do not write plural category labels", prompt)
+            self.assertIn("objective, variable, domain, constraint", prompt)
+            self.assertIn("variant` must be `proof_carrying`", prompt)
+            self.assertIn("proof-anchor-ledgers/BWOR-001.csv", prompt)
+            self.assertIn("support_label=ambiguous", prompt)
 
     def test_prompt_does_not_leak_dataset_labels_or_answer(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -273,6 +306,77 @@ class CodexAgentModeTests(unittest.TestCase):
                 },
             )
 
+    def test_run_codex_agent_harvests_and_validates_proof_anchor_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            paths = _paths(Path(temp_dir), "BWOR-001")
+            options = CodexAgentOptions(
+                codex_model=None,
+                codex_sandbox="workspace-write",
+                codex_approval="never",
+                max_repair_attempts=3,
+                timeout_seconds=900,
+                source_anchor_contract="proof_carrying",
+            )
+
+            def fake_run(
+                command: list[str],
+                input: str | None = None,
+                capture_output: bool = True,
+                text: bool = True,
+                check: bool = False,
+                timeout: int | None = None,
+            ) -> subprocess.CompletedProcess[str]:
+                if command == ["codex", "--version"]:
+                    return subprocess.CompletedProcess(command, 0, stdout="codex-cli test\n", stderr="")
+                self.assertIsNotNone(input)
+                self.assertIn("Proof anchor ledger CSV", input)
+                _write_fallback_artifacts(paths, "BWOR-001")
+                _write_fallback_proof_anchor_ledger(paths, "BWOR-001")
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+            with (
+                patch("or_llm_agent.codex_agent.subprocess.run", fake_run),
+                patch("or_llm_agent.codex_agent.shutil.which", return_value="/usr/local/bin/codex"),
+            ):
+                result = run_codex_agent(
+                    problem_id="BWOR-001",
+                    record={"en_question": "Build a tiny LP."},
+                    problem={"instance": {"sets": ["x"]}, "metamorphic": {}},
+                    problem_path=Path("/tmp/problem.json"),
+                    paths=paths,
+                    options=options,
+                    verify_command=["python", "-m", "or_ci.cli"],
+                )
+
+            self.assertEqual(result.proof_anchor_ledger_validation["status"], "valid")
+            self.assertTrue(paths.proof_anchor_ledger_path.is_file())
+            status = json.loads(paths.status_path.read_text(encoding="utf-8"))
+            self.assertEqual(status["source_anchor_contract"], "proof_carrying")
+            self.assertEqual(status["proof_anchor_ledger_schema_status"], "valid")
+            self.assertEqual(status["proof_anchor_ledger"], str(paths.proof_anchor_ledger_path))
+            manifest = json.loads(paths.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["options"]["source_anchor_contract"], "proof_carrying")
+            self.assertEqual(manifest["proof_anchor_ledger_schema_validation"]["row_count"], 1)
+
+    def test_validate_proof_anchor_ledger_rejects_plural_element_type(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "ledger.csv"
+            path.write_text(
+                "\n".join(
+                    [
+                        "row_id,variant,element_id,element_type,generated_element_text,source_anchor_text,source_anchor_location,support_label,severity,materiality_reason,reviewer_id,review_prompt_path,review_trace_path,notes",
+                        "BWOR-001,proof_carrying,c-1,constraints,Capacity <= limit,capacity limit,prompt:1,ambiguous,none,capacity constraint,codex,parent_agent_prompt,sessions/BWOR-001/codex-events.jsonl,",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = validate_proof_anchor_ledger(path, required=True)
+
+            self.assertEqual(result["status"], "invalid")
+            self.assertIn("element_type='constraints'", "\n".join(result["errors"]))
+
 
 def _paths(root: Path, problem_id: str) -> CodexAgentPaths:
     artifact_root = root / "artifact"
@@ -287,6 +391,7 @@ def _paths(root: Path, problem_id: str) -> CodexAgentPaths:
         raw_path=artifact_root / "raw" / f"{problem_id}.txt",
         status_path=artifact_root / "agent-status" / f"{problem_id}.json",
         manifest_path=artifact_root / "agent-status" / f"{problem_id}.agent-run-manifest.json",
+        proof_anchor_ledger_path=artifact_root / "proof-anchor-ledgers" / f"{problem_id}.csv",
     )
 
 
@@ -311,6 +416,21 @@ def _write_fallback_artifacts(paths: CodexAgentPaths, problem_id: str) -> None:
         encoding="utf-8",
     )
     fallback_message.write_text("Generated and verified.\n", encoding="utf-8")
+
+
+def _write_fallback_proof_anchor_ledger(paths: CodexAgentPaths, problem_id: str) -> None:
+    fallback_ledger = paths.work_dir / "proof-anchor-ledgers" / f"{problem_id}.csv"
+    fallback_ledger.parent.mkdir(parents=True, exist_ok=True)
+    fallback_ledger.write_text(
+        "\n".join(
+            [
+                "row_id,variant,element_id,element_type,generated_element_text,source_anchor_text,source_anchor_location,support_label,severity,materiality_reason,reviewer_id,review_prompt_path,review_trace_path,notes",
+                "BWOR-001,proof_carrying,obj-1,objective,Maximize profit,profit statement,prompt:1,ambiguous,none,objective term,codex,parent_agent_prompt,sessions/BWOR-001/codex-events.jsonl,",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":

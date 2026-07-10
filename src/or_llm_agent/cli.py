@@ -32,6 +32,7 @@ from or_llm_agent.codex_agent import (
     codex_exec_model_args,
     codex_run_metadata_summary_fields,
     neutral_work_dir,
+    proof_anchor_ledger_path,
     run_codex_agent,
 )
 from or_llm_agent.json_blocks import extract_json_object
@@ -315,6 +316,12 @@ def build_parser() -> argparse.ArgumentParser:
     solve.add_argument("--artifact-dir", required=True, type=Path)
     solve.add_argument("--model", default="o3-mini")
     solve.add_argument("--or-ci-root", default=default_or_ci_root(), type=Path)
+    solve.add_argument(
+        "--source-anchor-contract",
+        default="none",
+        choices=("none", "proof_carrying"),
+        help="agent mode: require proof-anchor ledger output for model generation",
+    )
     _add_agent_options(solve)
 
     solve_batch = subparsers.add_parser("solve-batch", help="run statement-to-spec-to-model solves for a batch")
@@ -330,6 +337,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     solve_batch.add_argument("--model", default="o3-mini")
     solve_batch.add_argument("--or-ci-root", default=default_or_ci_root(), type=Path)
+    solve_batch.add_argument(
+        "--source-anchor-contract",
+        default="none",
+        choices=("none", "proof_carrying"),
+        help="agent mode: require proof-anchor ledger output for each model generation",
+    )
     solve_batch.add_argument(
         "--agent-concurrency",
         default=2,
@@ -449,6 +462,7 @@ def _codex_options_from_args(args: argparse.Namespace) -> CodexAgentOptions:
         max_repair_attempts=args.max_repair_attempts,
         timeout_seconds=args.codex_timeout_seconds,
         codex_reasoning_effort=args.codex_reasoning_effort,
+        source_anchor_contract=getattr(args, "source_anchor_contract", "none"),
     )
 
 
@@ -799,6 +813,12 @@ def solve_command(args: argparse.Namespace) -> int:
             "verify_returncode": verification.returncode,
             "verify_stdout": verification.stdout,
             "verify_stderr": verification.stderr,
+            "source_anchor_contract": generation.get("source_anchor_contract", "none"),
+            "proof_anchor_ledger": _relative(generation["proof_anchor_ledger"], artifact_dir)
+            if generation.get("proof_anchor_ledger")
+            else "",
+            "proof_anchor_ledger_schema_status": generation.get("proof_anchor_ledger_schema_status", ""),
+            "proof_anchor_ledger_schema_validation": generation.get("proof_anchor_ledger_schema_validation", {}),
             **codex_run_metadata_summary_fields(generation.get("codex_run_metadata"), prefix="generation"),
         }
     )
@@ -1655,13 +1675,14 @@ def generate_agent_submission(
     paths: CodexAgentPaths,
     args: argparse.Namespace,
 ) -> dict[str, Any]:
+    options = _codex_options_from_args(args)
     result = run_codex_agent(
         problem_id=inputs.problem_id,
         record=inputs.record,
         problem=inputs.problem,
         problem_path=inputs.problem_path.resolve(),
         paths=paths,
-        options=_codex_options_from_args(args),
+        options=options,
         verify_command=or_ci_command()[0],
     )
 
@@ -1688,6 +1709,10 @@ def generate_agent_submission(
             "agent_manifest": paths.manifest_path,
             "last_message": paths.last_message_path,
             "codex_events": paths.events_path,
+            "source_anchor_contract": options.source_anchor_contract,
+            "proof_anchor_ledger": proof_anchor_ledger_path(paths),
+            "proof_anchor_ledger_schema_status": result.proof_anchor_ledger_validation.get("status", ""),
+            "proof_anchor_ledger_schema_validation": result.proof_anchor_ledger_validation,
         }
     )
     payload.update(codex_run_metadata_summary_fields(result.run_metadata))
@@ -3167,6 +3192,10 @@ def _solve_batch_row(
         "clarification_gate_status",
         "clarification_questions",
         "clarification_answers",
+        "source_anchor_contract",
+        "proof_anchor_ledger",
+        "proof_anchor_ledger_schema_status",
+        "proof_anchor_ledger_schema_validation",
         "submission",
         "report",
     ):

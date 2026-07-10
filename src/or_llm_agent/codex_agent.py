@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import csv
 import json
 import shlex
 import shutil
@@ -11,6 +12,43 @@ from pathlib import Path
 from typing import Any
 
 from or_llm_agent.redaction import redact_text
+
+
+PROOF_ANCHOR_CONTRACTS = ("none", "proof_carrying")
+PROOF_ANCHOR_LEDGER_COLUMNS = [
+    "row_id",
+    "variant",
+    "element_id",
+    "element_type",
+    "generated_element_text",
+    "source_anchor_text",
+    "source_anchor_location",
+    "support_label",
+    "severity",
+    "materiality_reason",
+    "reviewer_id",
+    "review_prompt_path",
+    "review_trace_path",
+    "notes",
+]
+PROOF_ANCHOR_ALLOWED_VALUES = {
+    "variant": {"baseline", "proof_carrying"},
+    "element_type": {
+        "objective",
+        "variable",
+        "domain",
+        "constraint",
+        "parameter",
+        "unit",
+        "relation",
+        "assumption",
+        "solver_status",
+        "other",
+    },
+    "support_label": {"supported", "contradicted", "unsupported", "not_in_source", "ambiguous"},
+    "severity": {"none", "minor", "major", "severe"},
+}
+PROOF_ANCHOR_REQUIRED_COLUMNS = [column for column in PROOF_ANCHOR_LEDGER_COLUMNS if column != "notes"]
 
 
 @dataclass(frozen=True)
@@ -25,6 +63,7 @@ class CodexAgentPaths:
     raw_path: Path
     status_path: Path
     manifest_path: Path
+    proof_anchor_ledger_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -35,6 +74,7 @@ class CodexAgentOptions:
     max_repair_attempts: int
     timeout_seconds: int | None
     codex_reasoning_effort: str | None = None
+    source_anchor_contract: str = "none"
 
 
 @dataclass(frozen=True)
@@ -46,6 +86,7 @@ class CodexAgentResult:
     last_message_path: Path
     status_path: Path
     run_metadata: dict[str, Any] = field(default_factory=dict)
+    proof_anchor_ledger_validation: dict[str, Any] = field(default_factory=dict)
 
 
 def build_agent_paths(
@@ -68,7 +109,14 @@ def build_agent_paths(
         raw_path=(raw_path or root / "raw" / f"{problem_id}.txt").resolve(),
         status_path=(root / "agent-status" / f"{problem_id}.json").resolve(),
         manifest_path=(root / "agent-status" / f"{problem_id}.agent-run-manifest.json").resolve(),
+        proof_anchor_ledger_path=(root / "proof-anchor-ledgers" / f"{problem_id}.csv").resolve(),
     )
+
+
+def proof_anchor_ledger_path(paths: CodexAgentPaths) -> Path:
+    if paths.proof_anchor_ledger_path is not None:
+        return paths.proof_anchor_ledger_path
+    return (paths.artifact_root / "proof-anchor-ledgers" / f"{paths.submission_path.stem}.csv").resolve()
 
 
 def neutral_work_dir(artifact_root: Path, problem_id: str) -> Path:
@@ -120,6 +168,10 @@ def run_codex_agent(
 
     run_metadata = build_codex_run_metadata(command=command, options=options, stdout=stdout)
     harvested = _harvest_work_dir_artifacts(paths)
+    ledger_validation = validate_proof_anchor_ledger(
+        proof_anchor_ledger_path(paths),
+        required=options.source_anchor_contract == "proof_carrying",
+    )
     manifest_payload = _build_run_manifest(
         problem_id=problem_id,
         problem_path=problem_path,
@@ -130,6 +182,7 @@ def run_codex_agent(
         timed_out=timed_out,
         harvested_artifacts=harvested,
         run_metadata=run_metadata,
+        proof_anchor_ledger_validation=ledger_validation,
     )
     paths.manifest_path.write_text(json.dumps(manifest_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     paths.events_path.write_text(redact_text(stdout), encoding="utf-8")
@@ -143,6 +196,10 @@ def run_codex_agent(
         "last_message_path": str(paths.last_message_path),
         "work_dir": str(paths.work_dir),
         "harvested_artifacts": harvested,
+        "source_anchor_contract": options.source_anchor_contract,
+        "proof_anchor_ledger": str(proof_anchor_ledger_path(paths)),
+        "proof_anchor_ledger_schema_status": ledger_validation["status"],
+        "proof_anchor_ledger_schema_validation": ledger_validation,
         "stderr": redact_text(stderr),
     }
     raw_payload.update(codex_run_metadata_summary_fields(run_metadata))
@@ -166,6 +223,10 @@ def run_codex_agent(
             "work_dir": str(paths.work_dir),
             "status_path": str(paths.status_path),
             "agent_manifest": str(paths.manifest_path),
+            "source_anchor_contract": options.source_anchor_contract,
+            "proof_anchor_ledger": str(proof_anchor_ledger_path(paths)),
+            "proof_anchor_ledger_schema_status": ledger_validation["status"],
+            "proof_anchor_ledger_schema_validation": ledger_validation,
         }
     )
     status_payload.update(codex_run_metadata_summary_fields(run_metadata))
@@ -178,6 +239,7 @@ def run_codex_agent(
         last_message_path=paths.last_message_path,
         status_path=paths.status_path,
         run_metadata=run_metadata,
+        proof_anchor_ledger_validation=ledger_validation,
     )
 
 
@@ -360,6 +422,57 @@ def _iter_codex_json_events(stdout: str) -> list[dict[str, Any]]:
     return events
 
 
+def validate_proof_anchor_ledger(path: Path, *, required: bool) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "path": str(path),
+        "required": required,
+        "status": "not_required" if not required else "missing",
+        "row_count": 0,
+        "errors": [],
+    }
+    if not required and not path.exists():
+        return result
+    if not path.is_file():
+        if required:
+            result["errors"].append("ledger file missing")
+        return result
+
+    try:
+        with path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            fieldnames = reader.fieldnames or []
+            rows = list(reader)
+    except (OSError, csv.Error) as exc:
+        result["status"] = "invalid"
+        result["errors"].append(f"{type(exc).__name__}: {exc}")
+        return result
+
+    result["row_count"] = len(rows)
+    missing_columns = [column for column in PROOF_ANCHOR_LEDGER_COLUMNS if column not in fieldnames]
+    extra_columns = [column for column in fieldnames if column not in PROOF_ANCHOR_LEDGER_COLUMNS]
+    if missing_columns:
+        result["errors"].append(f"missing column(s): {', '.join(missing_columns)}")
+    if extra_columns:
+        result["errors"].append(f"extra column(s): {', '.join(extra_columns)}")
+    if fieldnames != PROOF_ANCHOR_LEDGER_COLUMNS:
+        result["errors"].append("header order must match proof_anchor_ledger_schema.csv")
+    if required and not rows:
+        result["errors"].append("required ledger has no rows")
+
+    for row_index, row in enumerate(rows, start=2):
+        for column in PROOF_ANCHOR_REQUIRED_COLUMNS:
+            if not str(row.get(column, "")).strip():
+                result["errors"].append(f"line {row_index}: required column {column} is empty")
+        for column, allowed_values in PROOF_ANCHOR_ALLOWED_VALUES.items():
+            value = str(row.get(column, "")).strip()
+            if value and value not in allowed_values:
+                allowed = ", ".join(sorted(allowed_values))
+                result["errors"].append(f"line {row_index}: {column}={value!r} not in {{{allowed}}}")
+
+    result["status"] = "invalid" if result["errors"] else "valid"
+    return result
+
+
 def _build_run_manifest(
     *,
     problem_id: str,
@@ -371,6 +484,7 @@ def _build_run_manifest(
     timed_out: bool,
     harvested_artifacts: list[str],
     run_metadata: dict[str, Any],
+    proof_anchor_ledger_validation: dict[str, Any],
 ) -> dict[str, Any]:
     return {
         "schema_version": "swe_agent_run_manifest_v1",
@@ -385,6 +499,7 @@ def _build_run_manifest(
             "codex_approval": options.codex_approval,
             "max_repair_attempts": options.max_repair_attempts,
             "timeout_seconds": options.timeout_seconds,
+            "source_anchor_contract": options.source_anchor_contract,
         },
         "paths": {
             "artifact_root": str(paths.artifact_root),
@@ -400,11 +515,13 @@ def _build_run_manifest(
             "events_path": str(paths.events_path),
             "last_message_path": str(paths.last_message_path),
             "manifest_path": str(paths.manifest_path),
+            "proof_anchor_ledger_path": str(proof_anchor_ledger_path(paths)),
         },
         "result": {
             "returncode": returncode,
             "timed_out": timed_out,
         },
+        "proof_anchor_ledger_schema_validation": proof_anchor_ledger_validation,
         "harvested_artifacts": harvested_artifacts,
     }
 
@@ -444,6 +561,7 @@ def build_agent_prompt(
     question = record.get("en_question") or record.get("cn_question") or ""
     verify_base = shlex.join([*verify_command, "verify"])
     metadata_context = _problem_metadata_context(problem)
+    proof_anchor_contract = _proof_anchor_contract_prompt(problem_id=problem_id, paths=paths, options=options)
     return f"""You are running as a nested Codex agent for OR-LLM-Agent agent mode.
 
 Goal: generate one OR-CI submission for `{problem_id}`, verify it, inspect failures, and repair it up to {options.max_repair_attempts} times.
@@ -459,6 +577,7 @@ Required output paths:
 - OR-CI report JSON: {paths.report_path}
 - Agent status JSON: {paths.status_path}
 - Final answer message: {paths.last_message_path}
+{proof_anchor_contract}
 
 Do not edit repository source files. Final artifacts must be written only inside the artifact workspace. Temporary files may be created in the current Codex working directory and then moved or copied to the required output paths.
 
@@ -467,6 +586,7 @@ If the sandbox blocks writes to the absolute artifact workspace, write the same 
 - reports/{problem_id}.json
 - agent-status/{problem_id}.json
 - sessions/{problem_id}/last-message.md
+{_proof_anchor_fallback_prompt(problem_id=problem_id, options=options)}
 
 The parent CLI will harvest those fallback files after Codex exits.
 
@@ -514,6 +634,34 @@ Start now. Complete the workflow without asking for confirmation.
 """
 
 
+def _proof_anchor_contract_prompt(*, problem_id: str, paths: CodexAgentPaths, options: CodexAgentOptions) -> str:
+    if options.source_anchor_contract != "proof_carrying":
+        return ""
+    columns = ",".join(PROOF_ANCHOR_LEDGER_COLUMNS)
+    return f"""- Proof anchor ledger CSV: {proof_anchor_ledger_path(paths)}
+
+Proof-carrying source-anchor contract:
+- Write the proof anchor ledger CSV with this exact header:
+  {columns}
+- Allowed `element_type` values are singular only: objective, variable, domain, constraint, parameter, unit, relation, assumption, solver_status, other.
+- Do not write plural category labels such as variables, domains, constraints, parameters, units, or assumptions.
+- Add one row for each generated modeling element. Use `variable` for decision-variable declarations, `domain` for bounds/integrality/domain restrictions, `objective` for objective terms/sense, `constraint` for each constraint, `parameter` for numeric/source data, `unit` for units, `relation` for source-side named relations, `assumption` for material modeling assumptions, `solver_status` for solver-status assumptions, and `other` only when none fits.
+- Example row shape: `{problem_id},proof_carrying,constraint-capacity-1,constraint,<generated constraint text>,<exact source quote>,prompt:line,ambiguous,none,<why material>,codex,parent_agent_prompt,<events path>,`.
+- `row_id` must be `{problem_id}` and `variant` must be `proof_carrying`.
+- `source_anchor_text` must quote exact text from the natural language problem that supports the generated element.
+- `source_anchor_location` must identify the statement path or prompt location and line/span when possible.
+- Use `support_label=ambiguous` and `severity=none` during generation; later audit will assign final support labels.
+- If you cannot find source text for an element, do not invent an anchor. Either revise the model to remove the unsupported element or write the element with `source_anchor_text=UNSUPPORTED_BY_SOURCE`, `support_label=not_in_source`, and a materiality note.
+- `reviewer_id` must identify this nested Codex generation run; `review_prompt_path` can be `parent_agent_prompt`; `review_trace_path` can be the Codex events path.
+"""
+
+
+def _proof_anchor_fallback_prompt(*, problem_id: str, options: CodexAgentOptions) -> str:
+    if options.source_anchor_contract != "proof_carrying":
+        return ""
+    return f"- proof-anchor-ledgers/{problem_id}.csv"
+
+
 def _problem_metadata_context(problem: dict[str, Any]) -> str:
     scenarios = problem.get("scenarios")
     if isinstance(scenarios, list) and scenarios:
@@ -542,12 +690,15 @@ def _neutral_work_dir(artifact_root: Path, problem_id: str) -> Path:
 
 def _harvest_work_dir_artifacts(paths: CodexAgentPaths) -> list[str]:
     harvested: list[str] = []
+    ledger_path = proof_anchor_ledger_path(paths)
     pairs = (
         (paths.work_dir / "submissions" / paths.submission_path.name, paths.submission_path),
         (paths.work_dir / paths.submission_path.name, paths.submission_path),
         (paths.work_dir / "reports" / paths.report_path.name, paths.report_path),
         (paths.work_dir / paths.report_path.name, paths.report_path),
         (paths.work_dir / "agent-status" / paths.status_path.name, paths.status_path),
+        (paths.work_dir / "proof-anchor-ledgers" / ledger_path.name, ledger_path),
+        (paths.work_dir / ledger_path.name, ledger_path),
         (
             paths.work_dir / "sessions" / paths.session_dir.name / paths.last_message_path.name,
             paths.last_message_path,
@@ -573,6 +724,7 @@ def _ensure_agent_dirs(paths: CodexAgentPaths) -> None:
         paths.raw_path.parent,
         paths.status_path.parent,
         paths.manifest_path.parent,
+        proof_anchor_ledger_path(paths).parent,
     ):
         path.mkdir(parents=True, exist_ok=True)
 
