@@ -8,7 +8,11 @@ from or_llm_agent.audit_cli import main
 from or_llm_agent.benchmark_audit import execute_submission, sha256_file, write_json, write_jsonl
 from or_llm_agent.interpretation_audit import (
     INTERPRETATION_ANCHOR_FIELDS,
+    VARIANT_ID_RE,
+    InterpretationArtifactError,
+    _model_ir_payload,
     build_interpretation_prompt,
+    diagnose_interpretation_batch,
     validate_adjudication_artifacts,
     validate_interpretation_artifacts,
 )
@@ -17,7 +21,9 @@ from or_llm_agent.interpretation_audit import (
 STATEMENT = "Allocate at least one unit; quantities may be continuous or whole numbers."
 
 
-def _submission(coefficient: float) -> str:
+def _submission(coefficient: float, *, tuple_return: bool = False) -> str:
+    build_return = "return model, {'x': x}" if tuple_return else "return model"
+    solve_model = "built = build_model(domain)\n    model = built[0] if isinstance(built, tuple) else built"
     return f'''import json
 import gurobipy as gp
 from gurobipy import GRB
@@ -29,10 +35,10 @@ def build_model(domain: str) -> gp.Model:
     x = model.addVar(lb=0.0, vtype=vtype, name="x")
     model.addConstr(x >= 1.0, name="minimum")
     model.setObjective({coefficient} * x, GRB.MINIMIZE)
-    return model
+    {build_return}
 
 def solve(domain: str) -> dict:
-    model = build_model(domain)
+    {solve_model}
     model.Params.DualReductions = 0
     model.Params.InfUnbdInfo = 1
     model.optimize()
@@ -58,6 +64,7 @@ def _write_variant(
     variant_id: str,
     domain: str,
     coefficient: float,
+    tuple_return: bool = False,
 ) -> dict[str, object]:
     variant_dir = workspace / "variants" / variant_id
     variant_dir.mkdir(parents=True)
@@ -74,7 +81,10 @@ def _write_variant(
             "domain_evidence": {"domain": domain, "source_quote": STATEMENT},
         },
     )
-    (variant_dir / "submission.py").write_text(_submission(coefficient), encoding="utf-8")
+    (variant_dir / "submission.py").write_text(
+        _submission(coefficient, tuple_return=tuple_return),
+        encoding="utf-8",
+    )
     report = execute_submission(variant_dir, Path(__file__).resolve().parents[1])
     write_json(variant_dir / "solver_report.json", report)
     return {
@@ -146,6 +156,52 @@ def test_interpretation_prompt_is_answer_blind_and_caps_variants(tmp_path: Path)
     assert "at most 4 variants" in prompt
     assert "No benchmark answer is available" in prompt
     assert "Do not create an answer verdict" in prompt
+    assert "1 to 64 characters" in prompt
+    assert "(model, helper_data)" in prompt
+
+
+def test_variant_id_contract_accepts_64_safe_characters() -> None:
+    assert VARIANT_ID_RE.fullmatch("a" + "b" * 63)
+    assert not VARIANT_ID_RE.fullmatch("a" + "b" * 64)
+    assert not VARIANT_ID_RE.fullmatch("../variant")
+
+
+def test_model_ir_accepts_model_tuple_and_records_shape(tmp_path: Path) -> None:
+    submission = tmp_path / "submission.py"
+    submission.write_text(_submission(1.0, tuple_return=True), encoding="utf-8")
+
+    models, return_shapes = _model_ir_payload(
+        submission,
+        Path(__file__).resolve().parents[1],
+    )
+
+    assert set(models) == {"continuous", "integer"}
+    assert return_shapes == {"continuous": "model_tuple", "integer": "model_tuple"}
+
+
+def test_model_ir_classifies_quadratic_constraint(tmp_path: Path) -> None:
+    submission = tmp_path / "submission.py"
+    submission.write_text(
+        '''import gurobipy as gp
+
+def build_model(domain: str):
+    model = gp.Model()
+    model.Params.OutputFlag = 0
+    x = model.addVar(lb=0.0, name="x")
+    y = model.addVar(lb=0.0, name="y")
+    model.addQConstr(x * y <= 1.0, name="quadratic")
+    model.setObjective(x + y)
+    return model
+''',
+        encoding="utf-8",
+    )
+
+    try:
+        _model_ir_payload(submission, Path(__file__).resolve().parents[1])
+    except InterpretationArtifactError as exc:
+        assert exc.code == "unsupported_model_feature"
+    else:
+        raise AssertionError("expected unsupported quadratic feature")
 
 
 def test_interpretation_validation_parent_replays_and_fingerprints(tmp_path: Path) -> None:
@@ -164,6 +220,47 @@ def test_interpretation_validation_parent_replays_and_fingerprints(tmp_path: Pat
     assert result["material_multi_variant"] is True
     assert len({variant["model_ir_fingerprint"] for variant in result["variants"]}) == 2
     assert (workspace / "variants" / "integer" / "parent_model_ir.json").is_file()
+
+
+def test_diagnostic_replay_writes_sidecar_without_mutating_source(tmp_path: Path) -> None:
+    run_dir = tmp_path / "source-run"
+    (run_dir / "rows").mkdir(parents=True)
+    workspace, row_id, source_sha256 = _workspace(run_dir / "rows")
+    workspace.rename(workspace.parent / row_id)
+    workspace = workspace.parent / row_id
+    write_json(
+        workspace / "run-input.json",
+        {
+            "row_id": row_id,
+            "split": "diagnostic",
+            "statement_path": "source/row.txt",
+            "source_sha256": source_sha256,
+        },
+    )
+    write_json(
+        workspace / "run-manifest.json",
+        {
+            "row_id": row_id,
+            "returncode": 0,
+            "timed_out": False,
+            "terminal_status": "success",
+            "leakage_findings": [],
+        },
+    )
+    source_files_before = sorted(path.relative_to(run_dir) for path in run_dir.rglob("*") if path.is_file())
+
+    summary = diagnose_interpretation_batch(
+        run_dir,
+        tmp_path / "diagnostic",
+        Path(__file__).resolve().parents[1],
+        expected_valid=1,
+        expected_failures={},
+    )
+
+    source_files_after = sorted(path.relative_to(run_dir) for path in run_dir.rglob("*") if path.is_file())
+    assert summary["gate_pass"] is True
+    assert summary["source_immutable"] is True
+    assert source_files_after == source_files_before
 
 
 def test_interpretation_validation_rejects_more_than_four_variants(tmp_path: Path) -> None:

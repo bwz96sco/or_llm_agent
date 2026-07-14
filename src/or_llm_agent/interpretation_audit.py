@@ -81,7 +81,13 @@ TERMINAL_STATES = {
     "leakage_blocked",
     "timed_out",
 }
-VARIANT_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}\Z")
+VARIANT_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}\Z")
+
+
+class InterpretationArtifactError(AuditRunnerError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def sha256_json(payload: Any) -> str:
@@ -113,13 +119,13 @@ Write `interpretation_set.json` with exactly these root fields:
 - row_id, source_sha256, enumeration_status, summary, variants
 - enumeration_status is one of `within_cap`, `truncated`, `uncertain`.
 - variants is a list of one to four objects with exactly: variant_id, domain, changed_assumption, material, source_quotes.
-- variant_id uses lowercase letters, digits, `_`, or `-`.
+- variant_id is 1 to 64 characters and uses lowercase letters, digits, `_`, or `-`.
 - material is a JSON boolean.
 - source_quotes is a non-empty list of character-for-character statement spans.
 
 For each variant `<id>`, write:
 - `variants/<id>/problem.json`: row_id, source_sha256, variant_id, variables, objective, constraints, assumptions, domain_evidence. Every modeled element includes an exact source_quote.
-- `variants/<id>/submission.py`: self-contained stdlib + gurobipy; define `build_model(domain: str)` for `continuous` and `integer`; solve quietly in `__main__`; print one final JSON object with continuous and integer results.
+- `variants/<id>/submission.py`: self-contained stdlib + gurobipy; define `build_model(domain: str)` for `continuous` and `integer`. It may return a Gurobi model or `(model, helper_data)`, where the first tuple item is the Gurobi model. Solve quietly in `__main__`; print one final JSON object with continuous and integer results.
 - `variants/<id>/solver_report.json`: exact parsed output from the final successful submission execution.
 
 Each domain result contains status, objective, variables, max_constraint_violation, and iis_constraints. Use OutputFlag=0, DualReductions=0, and InfUnbdInfo=1. Compute an IIS when infeasible.
@@ -137,13 +143,18 @@ Do not create an answer verdict. The parent compares hidden answers only after a
 """
 
 
-def _model_ir_payload(submission: Path, project_root: Path, timeout_seconds: int = 120) -> dict[str, Any]:
+def _model_ir_payload(
+    submission: Path,
+    project_root: Path,
+    timeout_seconds: int = 120,
+) -> tuple[dict[str, Any], dict[str, str]]:
     script = """
 import importlib.util
 import json
 import sys
 from pathlib import Path
-from or_ci.model_ir import extract_model_ir
+import gurobipy as gp
+from or_ci.model_ir import UnsupportedModelFeature, extract_model_ir
 
 path = Path(sys.argv[1]).resolve()
 spec = importlib.util.spec_from_file_location("interpretation_submission", path)
@@ -155,10 +166,26 @@ build_model = getattr(module, "build_model", None)
 if not callable(build_model):
     raise RuntimeError("submission must define build_model(domain)")
 payload = {}
-for domain in ("continuous", "integer"):
-    model = build_model(domain)
-    payload[domain] = extract_model_ir(model).to_dict()
-print(json.dumps(payload, sort_keys=True))
+return_shapes = {}
+try:
+    for domain in ("continuous", "integer"):
+        built = build_model(domain)
+        if isinstance(built, gp.Model):
+            model = built
+            return_shapes[domain] = "bare_model"
+        elif isinstance(built, tuple) and len(built) == 2 and isinstance(built[0], gp.Model):
+            model = built[0]
+            return_shapes[domain] = "model_tuple"
+        else:
+            raise TypeError("build_model(domain) must return Model or (Model, helper_data)")
+        payload[domain] = extract_model_ir(model).to_dict()
+except UnsupportedModelFeature as exc:
+    print(json.dumps({"error_code": "unsupported_model_feature", "error": str(exc)}, sort_keys=True))
+    raise SystemExit(3)
+except Exception as exc:
+    print(json.dumps({"error_code": "invalid_build_model_return", "error": str(exc)}, sort_keys=True))
+    raise SystemExit(4)
+print(json.dumps({"models": payload, "return_shapes": return_shapes}, sort_keys=True))
 """
     result = subprocess.run(
         ["uv", "run", "--project", str(project_root), "python", "-c", script, str(submission)],
@@ -167,12 +194,37 @@ print(json.dumps(payload, sort_keys=True))
         check=False,
         timeout=timeout_seconds,
     )
+    parsed: Any = None
+    if result.stdout.strip():
+        try:
+            parsed = _parse_last_json_line(result.stdout)
+        except AuditRunnerError:
+            parsed = None
     if result.returncode != 0:
-        raise AuditRunnerError(f"parent ModelIR extraction failed: {result.stderr.strip()}")
-    payload = _parse_last_json_line(result.stdout)
-    if not isinstance(payload, dict) or set(payload) != {"continuous", "integer"}:
-        raise AuditRunnerError("parent ModelIR output must have continuous and integer keys")
-    return payload
+        if isinstance(parsed, dict) and isinstance(parsed.get("error_code"), str):
+            raise InterpretationArtifactError(
+                parsed["error_code"],
+                f"parent ModelIR extraction failed: {parsed.get('error', 'unknown error')}",
+            )
+        raise InterpretationArtifactError(
+            "model_ir_extraction_failed",
+            f"parent ModelIR extraction failed: {result.stderr.strip()}",
+        )
+    if not isinstance(parsed, dict) or set(parsed) != {"models", "return_shapes"}:
+        raise InterpretationArtifactError("model_ir_output_invalid", "parent ModelIR output has invalid root keys")
+    models = parsed["models"]
+    return_shapes = parsed["return_shapes"]
+    expected_domains = {"continuous", "integer"}
+    if not isinstance(models, dict) or set(models) != expected_domains:
+        raise InterpretationArtifactError(
+            "model_ir_output_invalid",
+            "parent ModelIR output must have continuous and integer models",
+        )
+    if not isinstance(return_shapes, dict) or set(return_shapes) != expected_domains or any(
+        shape not in {"bare_model", "model_tuple"} for shape in return_shapes.values()
+    ):
+        raise InterpretationArtifactError("model_ir_output_invalid", "parent ModelIR return shapes are invalid")
+    return models, return_shapes
 
 
 def _selected_result(report: dict[str, Any], domain: str) -> dict[str, Any]:
@@ -208,6 +260,7 @@ def validate_interpretation_artifacts(
     if not set_path.is_file() or not anchors_path.is_file():
         return {"status": "invalid", "errors": ["missing interpretation_set.json or source_anchors.csv"]}
     errors: list[str] = []
+    failure_codes: set[str] = set()
     try:
         payload = json.loads(set_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -235,6 +288,7 @@ def validate_interpretation_artifacts(
         variant_id = variant.get("variant_id")
         if not isinstance(variant_id, str) or not VARIANT_ID_RE.fullmatch(variant_id):
             errors.append(f"{prefix}: invalid variant_id")
+            failure_codes.add("invalid_variant_id")
             continue
         if variant_id in seen_ids:
             errors.append(f"{prefix}: duplicate variant_id")
@@ -258,6 +312,7 @@ def validate_interpretation_artifacts(
         missing = [name for name in VARIANT_REQUIRED_FILES if not (variant_dir / name).is_file()]
         if missing:
             errors.append(f"{prefix}: missing files {missing}")
+            failure_codes.add("missing_variant_artifacts")
             continue
         try:
             problem = json.loads((variant_dir / "problem.json").read_text(encoding="utf-8"))
@@ -289,15 +344,22 @@ def validate_interpretation_artifacts(
             if not _same_solver_report(agent_report, parent_report):
                 raise AuditRunnerError("agent and parent solver reports disagree")
             write_json(variant_dir / "parent_solver_report.json", parent_report)
-            model_ir = _model_ir_payload(variant_dir / "submission.py", project_root)
+            model_ir, return_shapes = _model_ir_payload(variant_dir / "submission.py", project_root)
             write_json(variant_dir / "parent_model_ir.json", model_ir)
+            write_json(variant_dir / "parent_model_interface.json", {"return_shapes": return_shapes})
+        except InterpretationArtifactError as exc:
+            errors.append(f"{prefix}: {exc}")
+            failure_codes.add(exc.code)
+            continue
         except (AuditRunnerError, OSError, subprocess.SubprocessError) as exc:
             errors.append(f"{prefix}: {exc}")
+            failure_codes.add("parent_replay_failed")
             continue
         normalized.append(
             {
                 **variant,
                 "model_ir_fingerprint": sha256_json(model_ir[domain]),
+                "build_model_return_shapes": return_shapes,
                 "selected_result": _selected_result(parent_report, domain),
                 "paths": {
                     "problem": f"variants/{variant_id}/problem.json",
@@ -332,7 +394,9 @@ def validate_interpretation_artifacts(
     if missing_anchor_ids:
         errors.append(f"source_anchors.csv: variants without anchors {sorted(missing_anchor_ids)}")
     if errors:
-        return {"status": "invalid", "errors": errors}
+        if not failure_codes:
+            failure_codes.add("artifact_contract_invalid")
+        return {"status": "invalid", "errors": errors, "failure_codes": sorted(failure_codes)}
     validated = {
         "schema_version": "interpretation_set_validated_v1",
         "row_id": row_id,
@@ -745,3 +809,77 @@ def revalidate_interpretation_batch(run_dir: Path, project_root: Path, *, kind: 
         },
     )
     return results
+
+
+def _tree_sha256(root: Path) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
+        relative = path.relative_to(root).as_posix()
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(sha256_file(path)))
+    return digest.hexdigest()
+
+
+def _diagnostic_failure_codes(result: dict[str, Any]) -> list[str]:
+    if result["effective_terminal_status"] == "success":
+        return []
+    initial = str(result.get("initial_terminal_status", "unknown"))
+    if initial in {"model_failed", "solver_failed", "leakage_blocked", "timed_out"}:
+        return [initial]
+    validation = result.get("validation", {})
+    codes = validation.get("failure_codes", []) if isinstance(validation, dict) else []
+    return sorted(str(code) for code in codes) or [initial]
+
+
+def diagnose_interpretation_batch(
+    run_dir: Path,
+    output_dir: Path,
+    project_root: Path,
+    *,
+    expected_valid: int,
+    expected_failures: dict[str, str],
+) -> dict[str, Any]:
+    if not run_dir.is_dir():
+        raise AuditRunnerError(f"diagnostic source run does not exist: {run_dir}")
+    if output_dir.exists():
+        raise AuditRunnerError(f"diagnostic output already exists: {output_dir}")
+    source_hash_before = _tree_sha256(run_dir)
+    copied_run = output_dir / "copied-run"
+    output_dir.mkdir(parents=True)
+    shutil.copytree(run_dir, copied_run)
+    copied_hash_before = _tree_sha256(copied_run)
+    results = revalidate_interpretation_batch(copied_run, project_root, kind="generation")
+    source_hash_after = _tree_sha256(run_dir)
+    observed_failures = {
+        str(result["row_id"]): codes
+        for result in results
+        if (codes := _diagnostic_failure_codes(result))
+    }
+    expected_failure_lists = {row_id: [code] for row_id, code in sorted(expected_failures.items())}
+    valid = sum(result["effective_terminal_status"] == "success" for result in results)
+    gate_pass = (
+        len(results) == expected_valid + len(expected_failures)
+        and valid == expected_valid
+        and observed_failures == expected_failure_lists
+        and source_hash_before == source_hash_after == copied_hash_before
+    )
+    summary = {
+        "schema_version": "interpretation_diagnostic_replay_v1",
+        "status": "pass" if gate_pass else "fail",
+        "gate_pass": gate_pass,
+        "rows": len(results),
+        "valid_rows": valid,
+        "expected_valid_rows": expected_valid,
+        "observed_failures": observed_failures,
+        "expected_failures": expected_failure_lists,
+        "source_run": str(run_dir.resolve()),
+        "source_tree_sha256_before": source_hash_before,
+        "source_tree_sha256_after": source_hash_after,
+        "copied_tree_sha256_before_replay": copied_hash_before,
+        "source_immutable": source_hash_before == source_hash_after,
+        "model_sessions_added": 0,
+        "results": results,
+    }
+    write_json(output_dir / "replay-summary.json", summary)
+    return summary

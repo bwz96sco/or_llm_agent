@@ -14,6 +14,7 @@ from or_llm_agent.benchmark_audit import (
     validate_policy,
 )
 from or_llm_agent.interpretation_audit import (
+    diagnose_interpretation_batch,
     load_adjudication_manifest,
     revalidate_interpretation_batch,
     run_adjudication_batch,
@@ -63,6 +64,11 @@ def build_parser() -> argparse.ArgumentParser:
     revalidate_interpretation = subparsers.add_parser("revalidate-interpretation-batch")
     revalidate_interpretation.add_argument("--run-dir", type=Path, required=True)
     revalidate_interpretation.add_argument("--kind", choices=["generation", "adjudication"], required=True)
+    diagnose_interpretation = subparsers.add_parser("diagnose-interpretation-batch")
+    diagnose_interpretation.add_argument("--run-dir", type=Path, required=True)
+    diagnose_interpretation.add_argument("--out-dir", type=Path, required=True)
+    diagnose_interpretation.add_argument("--expected-valid", type=int, required=True)
+    diagnose_interpretation.add_argument("--expected-failure", action="append", default=[])
     return parser
 
 
@@ -75,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         "run-interpretation-batch",
         "adjudicate-interpretation-batch",
         "revalidate-interpretation-batch",
+        "diagnose-interpretation-batch",
     }:
         parser.print_help()
         return 2
@@ -91,6 +98,23 @@ def main(argv: list[str] | None = None) -> int:
             failures = sum(result["effective_terminal_status"] != "success" for result in results)
             print(json.dumps({"rows": len(results), "success": len(results) - failures, "failures": failures}))
             return 1 if failures else 0
+        if args.command == "diagnose-interpretation-batch":
+            expected_failures: dict[str, str] = {}
+            for value in args.expected_failure:
+                row_id, separator, code = value.partition("=")
+                if not separator or not row_id or not code or row_id in expected_failures:
+                    raise AuditRunnerError(f"invalid --expected-failure value: {value}")
+                expected_failures[row_id] = code
+            project_root = Path(__file__).resolve().parents[2]
+            summary = diagnose_interpretation_batch(
+                args.run_dir,
+                args.out_dir,
+                project_root,
+                expected_valid=args.expected_valid,
+                expected_failures=expected_failures,
+            )
+            print(json.dumps(summary, sort_keys=True))
+            return 0 if summary["gate_pass"] else 1
         is_adjudication = args.command == "adjudicate-interpretation-batch"
         role = "sol" if is_adjudication else "terra" if args.command == "run-interpretation-batch" else args.role
         options = AuditOptions(
