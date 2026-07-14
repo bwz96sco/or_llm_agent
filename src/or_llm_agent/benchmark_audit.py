@@ -165,6 +165,7 @@ Write these exact files in the current workspace:
 `problem.json`
 - JSON object with: row_id, source_sha256, variables, objective, constraints, assumptions, domain_evidence.
 - Every variable/objective/constraint must include an exact source quote.
+- Exact means character-for-character after JSON parsing. Preserve every source backslash, escape marker, punctuation mark, and space. If the statement contains a backslash before a currency symbol, the parsed source_quote must retain that backslash, so escape it correctly in JSON.
 
 `submission.py`
 - Self-contained Python using only Python stdlib and gurobipy.
@@ -182,6 +183,7 @@ Write these exact files in the current workspace:
 - One row per material modeling element.
 - support_label must be one of supported, contradicted, unsupported, ambiguous.
 - source_quote must be one contiguous exact statement span, or multiple complete exact sentences kept intact and in source order, or `UNSUPPORTED_BY_SOURCE`.
+- Exact means character-for-character after CSV parsing. Never remove source backslashes or normalize escaped currency text.
 - Never stitch partial clauses, paraphrase, or omit words inside an anchored sentence. Use separate rows when separate clauses are needed.
 
 `audit.json`

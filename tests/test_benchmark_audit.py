@@ -13,6 +13,7 @@ from or_llm_agent.benchmark_audit import (
     POLICY,
     SOURCE_ANCHOR_FIELDS,
     build_codex_command,
+    build_prompt,
     load_source_manifest,
     run_batch,
     sha256_file,
@@ -75,6 +76,14 @@ def test_source_quote_accepts_ordered_complete_sentences_but_not_stitched_clause
     statement = "First complete sentence. Middle sentence. Last complete sentence."
     assert source_quote_is_exact("First complete sentence. Last complete sentence.", statement)
     assert not source_quote_is_exact("First complete. Last complete sentence.", statement)
+
+
+def test_prompt_requires_literal_backslash_preservation(tmp_path: Path) -> None:
+    prompt = build_prompt(row_id="row-1", source_sha256="abc", project_root=tmp_path)
+
+    assert "Preserve every source backslash" in prompt
+    assert "parsed source_quote must retain that backslash" in prompt
+    assert "Never remove source backslashes" in prompt
 
 
 def _write_success_artifacts(workspace: Path, row_id: str, source_sha256: str) -> None:
