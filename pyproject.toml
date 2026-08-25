@@ -20,6 +20,7 @@ dependencies = [
 or-llm-agent = "or_llm_agent.cli:main"
 or-llm-audit = "or_llm_agent.audit_cli:main"
 or-llm-workspace-bind = "or_llm_agent.workspace_binding_cli:main"
+or-llm-mps-repair = "or_llm_agent.mps_repair_cli:main"
 
 [build-system]
 requires = ["hatchling"]
