@@ -50,6 +50,7 @@ from or_llm_agent.prompts import (
 )
 from or_llm_agent.provider import query_llm, required_env_names
 from or_llm_agent.redaction import env_status, redact_text
+from or_llm_agent.revision import run_revision
 
 
 class CLIError(Exception):
@@ -221,6 +222,8 @@ def _main(argv: list[str] | None = None) -> int:
         return spec_command(args)
     if args.command == "generate":
         return generate_command(args)
+    if args.command == "revise":
+        return revise_command(args)
     if args.command == "verify":
         return verify_command(args)
     if args.command == "pilot":
@@ -293,6 +296,16 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--dataset", default=default_bwor_dataset(), type=Path)
     generate.add_argument("--or-ci-root", default=default_or_ci_root(), type=Path)
     _add_agent_options(generate)
+
+    revise = subparsers.add_parser("revise", help="revise an inherited OR model under a visible requirement change")
+    revise.add_argument("--problem-id", required=True)
+    revise.add_argument("--base-submission", required=True, type=Path)
+    revise.add_argument("--base-statement", required=True, type=Path)
+    revise.add_argument("--change-log", required=True, type=Path)
+    revise.add_argument("--problem", required=True, type=Path)
+    revise.add_argument("--artifact-dir", required=True, type=Path)
+    revise.add_argument("--witness-file", type=Path, help="optional single disclosed counterexample for one repair attempt")
+    _add_agent_options(revise)
 
     verify = subparsers.add_parser("verify", help="verify a generated submission with standalone OR-CI")
     verify.add_argument("--problem", required=True, type=Path)
@@ -452,6 +465,24 @@ def _add_agent_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--codex-approval", default="never", choices=("untrusted", "on-failure", "on-request", "never"))
     parser.add_argument("--max-repair-attempts", default=3, type=int)
     parser.add_argument("--codex-timeout-seconds", default=900, type=int, help="agent mode: timeout for one nested codex exec run; <=0 disables")
+
+
+def revise_command(args: argparse.Namespace) -> int:
+    try:
+        result = run_revision(
+            problem_id=args.problem_id,
+            base_submission_path=args.base_submission.resolve(),
+            base_statement_path=args.base_statement.resolve(),
+            change_log_path=args.change_log.resolve(),
+            problem_path=args.problem.resolve(),
+            artifact_dir=args.artifact_dir.resolve(),
+            options=_codex_options_from_args(args),
+            witness_path=args.witness_file.resolve() if args.witness_file else None,
+        )
+    except ValueError as exc:
+        raise CLIError(str(exc)) from exc
+    print(f"revision {result.problem_id}: {result.nominal_status}/{result.nominal_classification}")
+    return 0 if result.returncode == 0 and result.nominal_status == "PASS" else 1
 
 
 def _codex_options_from_args(args: argparse.Namespace) -> CodexAgentOptions:
