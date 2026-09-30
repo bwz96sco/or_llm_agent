@@ -1,6 +1,0 @@
-{"file": ".trellis/spec/backend/index.md", "reason": "Backend conventions and pre-development checklist."}
-{"file": ".trellis/spec/backend/cli-contracts.md", "reason": "Packaged CLI artifact contracts and agent-mode behavior."}
-{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Test expectations and structured output guidance."}
-{"file": "src/or_llm_agent/codex_agent.py", "reason": "Existing Codex agent adapter and artifact path definitions."}
-{"file": "tests/test_codex_agent.py", "reason": "Focused tests for nested Codex command, prompt, fallback harvesting, and status/raw artifacts."}
-{"file": "/Users/zhangbowen/Projects/OR/note/OR-research/ideas/agent-native-or-source-fidelity/07_experiment_brief.md", "reason": "Constructed source-fidelity benchmark identifies fixed workflow versus agent-native workflow as a supporting ablation."}
